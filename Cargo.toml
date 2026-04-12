@@ -4,7 +4,7 @@ version = "0.9.1"
 edition = "2024"
 
 [lib]
-crate-type = ["rlib", "cdylib", "staticlib"]
+crate-type = ["rlib", "staticlib"]
 
 [[bin]]
 name = "rpi-imgpatcher"

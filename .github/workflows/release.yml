@@ -34,7 +34,7 @@ jobs:
       - name: Prepare artifact
         run: |
           mkdir -p dist
-          cp target/${{ matrix.target }}/release/librpi-imgpatcher.a dist/
+          cp target/${{ matrix.target }}/release/librpi_imgpatcher.a dist/
           cp target/${{ matrix.target }}/release/rpi-imgpatcher dist/ || true
           cp include/*.h dist/ || true
 
@@ -55,7 +55,6 @@ jobs:
     strategy:
       matrix:
         target:
-          - aarch64-unknown-linux-gnu
           - x86_64-unknown-linux-gnu
 
     steps:
@@ -73,7 +72,7 @@ jobs:
       - name: Prepare artifact
         run: |
           mkdir -p dist
-          cp target/${{ matrix.target }}/release/librpi-imgpatcher.a dist/
+          cp target/${{ matrix.target }}/release/librpi_imgpatcher.a dist/
           cp target/${{ matrix.target }}/release/rpi-imgpatcher dist/ || true
           cp include/*.h dist/ || true
 
