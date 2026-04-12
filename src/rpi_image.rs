@@ -104,3 +104,68 @@ impl RpiImage {
     SaveStrategy::Overwrite.save(self)
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crc32fast::hash;
+  use std::fs::File;
+  use std::io::{Cursor, Read, Seek, SeekFrom};
+  use uuid::Uuid;
+
+  #[test]
+  fn save_to_file_can_be_verified_by_reading_back_the_raw_fat_image() {
+    // First, let's make up random data
+    let uuid = Uuid::new_v4().to_string();
+    let file_name = format!("{:08x}.txt", hash(uuid.as_bytes()));
+
+    // Open our fixture IMG
+    let fixture_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+      .join("tests")
+      .join("fixtures")
+      .join("test.img");
+
+    // Write our random data
+    let mut image = RpiImage::new(&fixture_path).expect("should open fixture image");
+    image
+      .write_bytes(&file_name, uuid.as_bytes())
+      .expect("should write bytes into FAT workspace");
+
+    // Âaaand save
+    let output = NamedTempFile::new().expect("should create output temp file");
+    let output_path = output.path().to_path_buf();
+    image
+      .save_to_file(&output_path)
+      .expect("should save patched image to temp file");
+
+    // Re-open and get the FAT
+    let mut output_file = File::open(&output_path).expect("should reopen saved image");
+    let layout = FatPartitionLayout::new(&mut output_file).expect("should read FAT layout");
+
+    output_file
+      .seek(SeekFrom::Start(layout.base))
+      .expect("should seek to FAT start");
+    let mut fat_bytes = Vec::with_capacity(layout.length as usize);
+    (&mut output_file)
+      .take(layout.length)
+      .read_to_end(&mut fat_bytes)
+      .expect("should read extracted FAT bytes");
+
+    // Now open the FAT with fatfs-rs
+    let fat_stream = BufStream::new(Cursor::new(fat_bytes));
+    let fat_fs = fatfs::FileSystem::new(fat_stream, fatfs::FsOptions::new())
+      .expect("oracle should open FAT filesystem from RAM buffer");
+
+    let root_dir = fat_fs.root_dir();
+    let mut oracle_file = root_dir
+      .open_file(&file_name)
+      .expect("oracle should find written file");
+
+    let mut actual = Vec::new();
+    oracle_file
+      .read_to_end(&mut actual)
+      .expect("oracle should read written file contents");
+
+    assert_eq!(actual, uuid.as_bytes());
+  }
+}
