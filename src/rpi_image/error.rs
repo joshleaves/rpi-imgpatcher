@@ -3,6 +3,7 @@ use tempfile::PersistError;
 #[repr(C)]
 #[derive(Debug)]
 pub enum Error {
+  NullPointer,
   CopyMismatch,
   InvalidImage,
   InvalidArgument,
