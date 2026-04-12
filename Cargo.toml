@@ -3,6 +3,16 @@ name = "rpi-imgpatcher"
 version = "0.9.1"
 edition = "2024"
 
+authors = ["Arnaud 'red' Rouyer"]
+readme = "README.md"
+license = "MIT"
+description = "A tool to customize Raspberry Pi OS images by patching the boot partition without mounting or rebuilding the system."
+homepage = "https://github.com/joshleaves/rpi-imgpatcher"
+repository = "https://github.com/joshleaves/rpi-imgpatcher"
+
+keywords = ["raspberry-pi", "disk-image", "fat32", "ffi", "image"]
+categories = ["filesystem", "command-line-utilities"]
+
 [lib]
 crate-type = ["rlib", "staticlib"]
 
