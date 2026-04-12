@@ -1,6 +1,4 @@
-
-
-name: Test
+name: Test Rust code
 
 on:
   push:

@@ -22,7 +22,12 @@ impl SaveStrategy {
     std::mem::drop(fat);
     let mut src = File::open(&rpi.image_path)?;
     let mut fat = File::open(&rpi.fat_tmp_path)?;
-    let mut dst = OpenOptions::new().read(true).write(true).open(file)?;
+    let mut dst = OpenOptions::new()
+      .create(true)
+      .truncate(true)
+      .read(true)
+      .write(true)
+      .open(file)?;
 
     let mut header = (&mut src).take(rpi.fat_base);
     let bytes_written_header = std::io::copy(&mut header, &mut dst)?;
