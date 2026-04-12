@@ -26,7 +26,6 @@ In practice:
 - `ADD FILE` copies a host file into the FAT partition.
 - `APPEND FILE` appends a host file to an existing FAT file.
 - `SAVE` writes a new output image.
-- `OVERWRITE` writes changes back into the source image.
 
 ## Syntax rules
 
@@ -77,7 +76,7 @@ Arguments:
 Rules:
 
 - A valid `Patcherfile` must contain exactly one `FROM` before any operation that touches the image.
-- `ADD FILE`, `APPEND FILE`, `SAVE`, and `OVERWRITE` require a prior `FROM`.
+- `ADD FILE`, `APPEND FILE`, and `SAVE` require a prior `FROM`.
 
 ## `EXEC`
 
@@ -160,20 +159,6 @@ Behavior:
 - The original source image remains untouched.
 - `SAVE` finalizes the current patch session.
 
-## `OVERWRITE`
-
-Writes the patched FAT partition back into the original source image.
-
-```text
-OVERWRITE
-```
-
-Behavior:
-
-- The source image is modified in place.
-- `OVERWRITE` finalizes the current patch session.
-- `SAVE` and `OVERWRITE` are mutually exclusive in the same `Patcherfile`.
-
 ## Valid example
 
 ```text
@@ -206,19 +191,7 @@ FROM "tests/fixtures/test.img"
 ADD FILE "boot/firstrun.sh" "./firstrun.sh"
 ```
 
-Because the patch session never ends with either `SAVE` or `OVERWRITE`.
-
-## Conflicting output instructions
-
-This is invalid:
-
-```text
-FROM "tests/fixtures/test.img"
-SAVE "./out.img"
-OVERWRITE
-```
-
-Because `SAVE` and `OVERWRITE` cannot be used together.
+Because the patch session never ends with `SAVE`.
 
 ## Notes
 

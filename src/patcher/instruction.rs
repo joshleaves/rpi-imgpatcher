@@ -21,7 +21,6 @@ pub enum Instruction {
   Save {
     output_image: PathBuf,
   },
-  Overwrite,
   Exec {
     command: String,
   },
@@ -41,7 +40,6 @@ impl Instruction {
         host_file,
       } => self.execute_append_file(ctx, fat_path, host_file),
       Instruction::Save { output_image } => self.execute_save(ctx, output_image),
-      Instruction::Overwrite => self.execute_overwrite(ctx),
     }
   }
 
@@ -128,17 +126,6 @@ impl Instruction {
     rpi_image
       .save_to_file(output_image)
       .map_err(|err| PatchError::CouldNotSaveImage(output_image.clone(), err))?;
-
-    Ok(())
-  }
-
-  fn execute_overwrite(&self, ctx: &mut PatchContext) -> Result<(), PatchError> {
-    let Some(rpi_image) = ctx.rpi_image.take() else {
-      return Err(PatchError::CannotOverwriteBeforeFromInstruction);
-    };
-    rpi_image
-      .overwrite_in_place()
-      .map_err(PatchError::CouldNotOverwriteImage)?;
 
     Ok(())
   }

@@ -234,17 +234,3 @@ pub extern "C" fn rpi_image_save_to_file(rpi_image: *mut RpiImage, file: *const 
     Ok(_) => 0,
   }
 }
-
-// pub fn overwrite_in_place(self) -> Result<(), Error>
-#[allow(clippy::not_unsafe_ptr_arg_deref)]
-#[unsafe(no_mangle)]
-pub extern "C" fn rpi_image_overwrite(rpi_image: *mut RpiImage) -> i64 {
-  check_not_null!(rpi_image, -1);
-
-  let rpi_image = unsafe { Box::from_raw(rpi_image) };
-
-  match rpi_image.overwrite_in_place() {
-    Err(err) => err as i64,
-    Ok(_) => 0,
-  }
-}

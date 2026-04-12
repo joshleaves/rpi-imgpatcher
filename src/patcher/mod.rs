@@ -27,8 +27,7 @@ pub enum PatchError {
   MissingArgument(String),
   InvalidArguments(String, Vec<String>),
   MissingFromInstruction,
-  MissingSaveOrOverwriteInstruction,
-  ConflictingSaveInstructions,
+  MissingSaveInstruction,
   MultipleFromInstructions,
   CouldNotInitializeSourceImage(PathBuf),
   ExecFailed(i32, String),
@@ -38,8 +37,6 @@ pub enum PatchError {
   CouldNotWriteToFat(String, rpi_image::Error),
   CannotSaveBeforeFromInstruction(PathBuf),
   CouldNotSaveImage(PathBuf, rpi_image::Error),
-  CannotOverwriteBeforeFromInstruction,
-  CouldNotOverwriteImage(rpi_image::Error),
 }
 
 impl fmt::Display for PatchError {
@@ -61,11 +58,8 @@ impl fmt::Display for PatchError {
       PatchError::MissingFromInstruction => {
         write!(f, "Missing FROM instruction")
       }
-      PatchError::MissingSaveOrOverwriteInstruction => {
-        write!(f, "Missing SAVE or OVERWRITE instruction")
-      }
-      PatchError::ConflictingSaveInstructions => {
-        write!(f, "Cannot use SAVE and OVERWRITE together")
+      PatchError::MissingSaveInstruction => {
+        write!(f, "Missing SAVE instruction")
       }
       PatchError::CouldNotInitializeSourceImage(source_image) => {
         write!(f, "Could not initialize source image: {:?}", source_image)
@@ -109,12 +103,6 @@ impl fmt::Display for PatchError {
       }
       PatchError::CouldNotSaveImage(output_image, err) => {
         write!(f, "Could not save image: {:?} ({:?})", output_image, err)
-      }
-      PatchError::CannotOverwriteBeforeFromInstruction => {
-        write!(f, "Cannot use OVERWRITE before FROM instruction")
-      }
-      PatchError::CouldNotOverwriteImage(error) => {
-        write!(f, "Could not overwrite source image: {:?}", error)
       }
     }
   }

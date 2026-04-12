@@ -1,6 +1,8 @@
 use fatfs::FileSystem;
 use fscommon::BufStream;
-use std::fs::File;
+use lzma_rust2::{XzOptions, XzWriterMt};
+use std::fs::{File, OpenOptions};
+use std::io::{Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use tempfile::NamedTempFile;
 mod layout;
@@ -9,8 +11,8 @@ mod error;
 pub use error::Error;
 mod fat_file;
 mod image_io;
-mod save;
-use save::SaveStrategy;
+mod source_image;
+use source_image::SourceImageReader;
 
 pub struct RpiImage {
   // Path and handle to the original disk image.
@@ -35,18 +37,15 @@ impl RpiImage {
   /// the mutable workspace for all subsequent operations.
   pub fn new(image_path: impl AsRef<Path>) -> Result<Self, Error> {
     let image_path = image_path.as_ref().to_path_buf();
-    let mut image_file = File::open(&image_path)?;
+
+    let mut image_file = SourceImageReader::new(image_path.clone())?;
+    let layout_fat = image_file.layout_fat()?;
 
     let fat_tmp = NamedTempFile::new()?;
     let (mut fat_tmp_file, fat_tmp_path) = fat_tmp.keep()?;
+    image_file.extract_fat_to_file(layout_fat, &mut fat_tmp_file)?;
 
-    let layout_fat = FatPartitionLayout::new(&mut image_file)?;
-    image_io::extract_fat_to_file(
-      &mut image_file,
-      &mut fat_tmp_file,
-      layout_fat.base,
-      layout_fat.length,
-    )?;
+    fat_tmp_file.seek(SeekFrom::Start(0))?;
     let buf_stream = BufStream::new(fat_tmp_file);
     let fat = fatfs::FileSystem::new(buf_stream, fatfs::FsOptions::new())?;
 
@@ -92,16 +91,63 @@ impl RpiImage {
   /// Rebuild the full disk image into a new output file.
   ///
   /// The original image remains untouched.
-  pub fn save_to_file(self, file: impl AsRef<Path>) -> Result<(), Error> {
-    SaveStrategy::ToFile(file.as_ref().to_path_buf()).save(self)
+  pub fn save_to_file(self, out_file: impl AsRef<Path>) -> Result<(), Error> {
+    match out_file
+      .as_ref()
+      .to_path_buf()
+      .extension()
+      .and_then(|e| e.to_str())
+    {
+      Some("xz") => {
+        let out_file = OpenOptions::new()
+          .create(true)
+          .truncate(true)
+          .read(true)
+          .write(true)
+          .open(out_file)?;
+        let mut writer = XzWriterMt::<File>::new(out_file, XzOptions::default(), 0)?;
+        self.save_to_writer(&mut writer)
+      }
+      _ => {
+        let mut writer = OpenOptions::new()
+          .create(true)
+          .truncate(true)
+          .read(true)
+          .write(true)
+          .open(out_file)?;
+        self.save_to_writer(&mut writer)
+      }
+    }?;
+    Ok(())
+    // SaveStrategy::ToFile(file.as_ref().to_path_buf()).save(self)
   }
 
-  /// Write the modified FAT workspace back into the original image file.
-  ///
-  /// This mutates the source image in place and should be treated as a
-  /// destructive operation.
-  pub fn overwrite_in_place(self) -> Result<(), Error> {
-    SaveStrategy::Overwrite.save(self)
+  fn save_to_writer<W>(self, writer: &mut W) -> Result<(), Error>
+  where
+    W: Write,
+  {
+    let RpiImage {
+      fat,
+      fat_base,
+      fat_length,
+      image_path,
+      fat_tmp_path,
+      ..
+    } = self;
+    std::mem::drop(fat);
+
+    let mut image_file = SourceImageReader::new(image_path.clone())?;
+    let layout = FatPartitionLayout {
+      base: fat_base,
+      length: fat_length,
+    };
+    let mut fat = File::open(fat_tmp_path)?;
+    image_file.copy_mbr_to_file(layout, writer)?;
+    image_file.skip_fat(layout)?;
+    image_io::copy_exact_n(&mut fat, writer, layout.length)?;
+    image_file.copy_tail_to_file(writer)?;
+    writer.flush()?;
+    Ok(())
   }
 }
 

@@ -60,6 +60,14 @@ Instead, the focus is on:
 
 ---
 
+## Huge thanks to:
+
+- [mbrman](rust-disk-partition-management/mbrman)
+- [rust-fatfs](https://github.com/rafalh/rust-fatfs)
+- [lzma-rust2](https://github.com/hasenbanck/lzma-rust2)
+
+---
+
 ## Current Status
 
 🚧 Early development
@@ -82,6 +90,7 @@ The API and CLI are not stable yet.
 - [x] Validation and safety checks
 - [x] Declarative patch format ([Patcherfile](./PATCHERFILE.md))
 - [x] FFI bindings
+- [x] Support for .xz archives
 
 ---
 

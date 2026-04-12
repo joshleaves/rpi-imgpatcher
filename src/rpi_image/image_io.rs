@@ -1,22 +1,24 @@
 use crate::rpi_image::Error;
-use std::fs::File;
-use std::io::{Read, Seek, SeekFrom};
+use std::io::{Read, Write};
 
-// Attention: no safeguards here, you are responsible for what you copy
-pub fn extract_fat_to_file(
-  input_file: &mut File,
-  output_file: &mut File,
-  base: u64,
-  length: u64,
-) -> Result<(), Error> {
-  input_file.seek(SeekFrom::Start(base))?;
-  let mut limited = input_file.take(length);
-  let copied_len = std::io::copy(&mut limited, output_file)?;
+pub fn copy_exact<R, W>(src: &mut R, dst: &mut W) -> Result<u64, Error>
+where
+  R: Read,
+  W: Write,
+{
+  std::io::copy(src, dst).map_err(|_| Error::Io)
+}
 
+pub fn copy_exact_n<R, W>(src: &mut R, dst: &mut W, length: u64) -> Result<u64, Error>
+where
+  R: Read,
+  W: Write,
+{
+  let mut limited = src.take(length);
+  let copied_len = std::io::copy(&mut limited, dst)?;
   if copied_len != length {
     return Err(Error::CopyMismatch);
   }
 
-  output_file.seek(SeekFrom::Start(0))?;
-  Ok(())
+  Ok(copied_len)
 }
