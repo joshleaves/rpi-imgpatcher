@@ -1,0 +1,12 @@
+[package]
+name = "rpi-imgpatcher"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+fatfs = "0.3.6"
+fscommon = "0.1.1"
+mbrman = "0.6.1"
+tempfile = "3.27.0"
+
+
