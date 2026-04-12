@@ -3,6 +3,7 @@ use fscommon::BufStream;
 use lzma_rust2::{XzOptions, XzWriterMt};
 use std::fs::{File, OpenOptions};
 use std::io::{Seek, SeekFrom, Write};
+use std::num::NonZeroU64;
 use std::path::{Path, PathBuf};
 use tempfile::NamedTempFile;
 mod layout;
@@ -92,34 +93,27 @@ impl RpiImage {
   ///
   /// The original image remains untouched.
   pub fn save_to_file(self, out_file: impl AsRef<Path>) -> Result<(), Error> {
-    match out_file
-      .as_ref()
-      .to_path_buf()
-      .extension()
-      .and_then(|e| e.to_str())
-    {
+    let path = out_file.as_ref();
+
+    let mut writer = OpenOptions::new()
+      .create(true)
+      .truncate(true)
+      .read(true)
+      .write(true)
+      .open(&out_file)?;
+
+    match path.extension().and_then(|e| e.to_str()) {
       Some("xz") => {
-        let out_file = OpenOptions::new()
-          .create(true)
-          .truncate(true)
-          .read(true)
-          .write(true)
-          .open(out_file)?;
-        let mut writer = XzWriterMt::<File>::new(out_file, XzOptions::default(), 0)?;
+        let opts = XzOptions {
+          block_size: Some(NonZeroU64::new(4 * 1024 * 1024).unwrap()),
+          ..Default::default()
+        };
+        let mut writer = XzWriterMt::<File>::new(writer, opts, 0)?;
         self.save_to_writer(&mut writer)
       }
-      _ => {
-        let mut writer = OpenOptions::new()
-          .create(true)
-          .truncate(true)
-          .read(true)
-          .write(true)
-          .open(out_file)?;
-        self.save_to_writer(&mut writer)
-      }
+      _ => self.save_to_writer(&mut writer),
     }?;
     Ok(())
-    // SaveStrategy::ToFile(file.as_ref().to_path_buf()).save(self)
   }
 
   fn save_to_writer<W>(self, writer: &mut W) -> Result<(), Error>
@@ -198,6 +192,56 @@ mod tests {
       .expect("should read extracted FAT bytes");
 
     // Now open the FAT with fatfs-rs
+    let fat_stream = BufStream::new(Cursor::new(fat_bytes));
+    let fat_fs = fatfs::FileSystem::new(fat_stream, fatfs::FsOptions::new())
+      .expect("oracle should open FAT filesystem from RAM buffer");
+
+    let root_dir = fat_fs.root_dir();
+    let mut oracle_file = root_dir
+      .open_file(&file_name)
+      .expect("oracle should find written file");
+
+    let mut actual = Vec::new();
+    oracle_file
+      .read_to_end(&mut actual)
+      .expect("oracle should read written file contents");
+
+    assert_eq!(actual, uuid.as_bytes());
+  }
+
+  #[test]
+  fn save_to_file_from_xz_source_can_be_verified_by_reading_back_the_raw_fat_image() {
+    let uuid = Uuid::new_v4().to_string();
+    let file_name = format!("{:08x}.txt", hash(uuid.as_bytes()));
+
+    let xz_fixture_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+      .join("tests")
+      .join("fixtures")
+      .join("test.img.xz");
+
+    let mut image = RpiImage::new(&xz_fixture_path).expect("should open xz fixture image");
+    image
+      .write_bytes(&file_name, uuid.as_bytes())
+      .expect("should write bytes into FAT workspace from xz source");
+
+    let output = NamedTempFile::new().expect("should create output temp file");
+    let output_path = output.path().to_path_buf();
+    image
+      .save_to_file(&output_path)
+      .expect("should save patched image from xz source to temp file");
+
+    let mut output_file = File::open(&output_path).expect("should reopen saved image");
+    let layout = FatPartitionLayout::new(&mut output_file).expect("should read FAT layout");
+
+    output_file
+      .seek(SeekFrom::Start(layout.base))
+      .expect("should seek to FAT start");
+    let mut fat_bytes = Vec::with_capacity(layout.length as usize);
+    (&mut output_file)
+      .take(layout.length)
+      .read_to_end(&mut fat_bytes)
+      .expect("should read extracted FAT bytes");
+
     let fat_stream = BufStream::new(Cursor::new(fat_bytes));
     let fat_fs = fatfs::FileSystem::new(fat_stream, fatfs::FsOptions::new())
       .expect("oracle should open FAT filesystem from RAM buffer");
