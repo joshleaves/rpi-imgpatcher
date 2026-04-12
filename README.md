@@ -75,13 +75,13 @@ The API and CLI are not stable yet.
 
 ## Roadmap (high level)
 
-- [ ] Core image parsing
-- [ ] FAT extraction and modification
-- [ ] File injection
-- [ ] CLI tool
-- [ ] Validation and safety checks
-- [ ] Declarative patch format (`Patcherfile`)
-- [ ] FFI bindings
+- [x] Core image parsing
+- [x] FAT extraction and modification
+- [x] File injection
+- [x] CLI tool
+- [x] Validation and safety checks
+- [x] Declarative patch format ([Patcherfile](./PATCHERFILE.md))
+- [x] FFI bindings
 
 ---
 

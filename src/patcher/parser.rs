@@ -1,7 +1,7 @@
 use crate::patcher::Instruction;
 use crate::patcher::PatchError;
-use std::path::PathBuf;
 use std::env;
+use std::path::PathBuf;
 
 fn extract_arguments(input: &str) -> Vec<String> {
   let mut args = Vec::new();
@@ -56,7 +56,6 @@ fn validate_instructions(instructions: &[Instruction]) -> Result<(), PatchError>
   Ok(())
 }
 
-
 fn interpolate_env(input: &str) -> String {
   let mut result = String::new();
   let mut chars = input.chars().peekable();
@@ -94,7 +93,7 @@ pub fn parse_instructions(patcherfile: &str) -> Result<Vec<Instruction>, PatchEr
   let instructions: Vec<Instruction> = patcherfile
     .lines()
     .filter(|line| !line.is_empty())
-    .map(|line| interpolate_env(line))
+    .map(interpolate_env)
     .map(|line| {
       let (cmd, rest) = line.trim().split_once(' ').unwrap_or((&line, ""));
       match cmd {
@@ -127,7 +126,7 @@ fn parse_from(args: Vec<String>) -> Result<Instruction, PatchError> {
 fn parse_exec(command: String) -> Result<Instruction, PatchError> {
   match command.is_empty() {
     true => Err(PatchError::MissingArgument("EXEC".to_owned())),
-    false => Ok(Instruction::Exec { command })
+    false => Ok(Instruction::Exec { command }),
   }
 }
 

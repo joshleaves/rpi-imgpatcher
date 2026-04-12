@@ -1,10 +1,10 @@
+use crate::patcher::PatchContext;
+use crate::patcher::PatchError;
 use rpi_imgpatcher::RpiImage;
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
 use std::process::Stdio;
-use crate::patcher::PatchContext;
-use crate::patcher::PatchError;
 
 pub enum Instruction {
   From {
