@@ -1,0 +1,56 @@
+name: Test FFI code
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+jobs:
+  test:
+    name: Test FFI integration for rpi-imgpatcher
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build Rust library (release)
+        run: cargo build --release
+
+      - name: Install C toolchain and mount tools
+        run: sudo apt-get update && sudo apt-get install -y build-essential util-linux dosfstools uuid-runtime
+
+      - name: Build C test
+        run: make -C tests/ffi_c
+
+      - name: Run C test with random inputs
+        id: ffi
+        shell: bash
+        run: |
+          set -euo pipefail
+          UUID_VALUE="$(uuidgen | tr '[:upper:]' '[:lower:]')"
+          FILE_CRC32="$(printf '%s' "$UUID_VALUE" | cksum | awk '{print $1}')"
+          FILE_NAME="${FILE_CRC32}.txt"
+          FILE_CONTENT="$UUID_VALUE"
+          echo "file_name=${FILE_NAME}" >> "$GITHUB_OUTPUT"
+          echo "file_content=${FILE_CONTENT}" >> "$GITHUB_OUTPUT"
+          make -C tests/ffi_c run ARGS="${FILE_NAME} ${FILE_CONTENT}"
+
+      - name: Mount and verify saved image content
+        shell: bash
+        run: |
+          set -euo pipefail
+          LOOP_DEVICE="$(sudo losetup --show -fP tests/ffi_c/out.img)"
+          sudo mkdir -p /mnt/rpi-imgpatcher-fat
+          cleanup() {
+            sudo umount /mnt/rpi-imgpatcher-fat || true
+            sudo losetup -d "$LOOP_DEVICE" || true
+          }
+          trap cleanup EXIT
+          sudo mount -o ro "${LOOP_DEVICE}p1" /mnt/rpi-imgpatcher-fat
+          ACTUAL_CONTENT="$(sudo cat "/mnt/rpi-imgpatcher-fat/${{ steps.ffi.outputs.file_name }}")"
+          test "$ACTUAL_CONTENT" = "${{ steps.ffi.outputs.file_content }}"

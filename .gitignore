@@ -1,1 +1,3 @@
 /target
+
+/tests/ffi_c/*.img
