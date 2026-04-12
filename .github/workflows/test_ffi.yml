@@ -44,7 +44,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          LOOP_DEVICE="$(sudo losetup --show -fP tests/ffi_c/out.img)"
+          LOOP_DEVICE="$(sudo losetup --show -fP tests/ffi_c/out/out.img)"
           sudo mkdir -p /mnt/rpi-imgpatcher-fat
           cleanup() {
             sudo umount /mnt/rpi-imgpatcher-fat || true

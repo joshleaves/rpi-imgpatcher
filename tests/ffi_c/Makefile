@@ -8,7 +8,7 @@ else
   LDFLAGS = ../../target/release/librpi_imgpatcher.a
 endif
 
-TARGET = test
+TARGET = out/test
 SRC = main.c
 
 .PHONY: all run clean
