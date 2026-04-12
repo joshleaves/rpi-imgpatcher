@@ -16,13 +16,12 @@ mod source_image;
 use source_image::SourceImageReader;
 
 pub struct RpiImage {
-  // Path and handle to the original disk image.
-  // The original image is never modified until an explicit save step.
+  // Path to the original disk image.
+  // The original image is never modified.
   image_path: PathBuf,
 
   // Byte range of the boot FAT partition inside the source image.
-  fat_base: u64,
-  fat_length: u64,
+  layout: FatPartitionLayout,
 
   // Path to the temporary working copy of the FAT partition.
   fat_tmp_path: PathBuf,
@@ -40,11 +39,11 @@ impl RpiImage {
     let image_path = image_path.as_ref().to_path_buf();
 
     let mut image_file = SourceImageReader::new(image_path.clone())?;
-    let layout_fat = image_file.layout_fat()?;
+    let layout = image_file.layout_fat()?;
 
     let fat_tmp = NamedTempFile::new()?;
     let (mut fat_tmp_file, fat_tmp_path) = fat_tmp.keep()?;
-    image_file.extract_fat_to_file(layout_fat, &mut fat_tmp_file)?;
+    image_file.extract_fat_to_file(layout, &mut fat_tmp_file)?;
 
     fat_tmp_file.seek(SeekFrom::Start(0))?;
     let buf_stream = BufStream::new(fat_tmp_file);
@@ -53,8 +52,7 @@ impl RpiImage {
     Ok(Self {
       image_path,
 
-      fat_base: layout_fat.base,
-      fat_length: layout_fat.length,
+      layout,
 
       fat_tmp_path,
       fat,
@@ -100,7 +98,7 @@ impl RpiImage {
       .truncate(true)
       .read(true)
       .write(true)
-      .open(&out_file)?;
+      .open(path)?;
 
     match path.extension().and_then(|e| e.to_str()) {
       Some("xz") => {
@@ -122,8 +120,7 @@ impl RpiImage {
   {
     let RpiImage {
       fat,
-      fat_base,
-      fat_length,
+      layout,
       image_path,
       fat_tmp_path,
       ..
@@ -131,10 +128,6 @@ impl RpiImage {
     std::mem::drop(fat);
 
     let mut image_file = SourceImageReader::new(image_path.clone())?;
-    let layout = FatPartitionLayout {
-      base: fat_base,
-      length: fat_length,
-    };
     let mut fat = File::open(fat_tmp_path)?;
     image_file.copy_mbr_to_file(layout, writer)?;
     image_file.skip_fat(layout)?;
