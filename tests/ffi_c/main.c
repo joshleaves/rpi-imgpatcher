@@ -9,7 +9,7 @@ int main(int argc,  char **argv) {
   }
   uint32_t err = 0;
 
-  RpiImage* img = rpi_image_new("../fixtures/test.img");
+  RpiImage* img = rpi_image_new("../fixtures/test.img.xz");
   if (!img) {
     printf("failed to open image\n");
     return 1;
@@ -32,7 +32,7 @@ int main(int argc,  char **argv) {
 
   printf("written: %lld bytes\n", written);
 
-  int64_t res = rpi_image_save_to_file(img, "out/out.img");
+  int64_t res = rpi_image_save_to_file(img, "out/out.img.xz");
   if (res != 0) {
     printf("save failed, err=%lld\n", res);
     return 1;
