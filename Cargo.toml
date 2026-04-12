@@ -6,6 +6,10 @@ edition = "2024"
 [lib]
 crate-type = ["rlib", "cdylib", "staticlib"]
 
+[[bin]]
+name = "rpi-imgpatcher"
+path = "src/cli.rs"
+
 [dependencies]
 fatfs = "0.3.6"
 fscommon = "0.1.1"
