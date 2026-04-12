@@ -107,7 +107,9 @@ impl RpiImage {
           ..Default::default()
         };
         let mut writer = XzWriterMt::<File>::new(writer, opts, 0)?;
-        self.save_to_writer(&mut writer)
+        self.save_to_writer(&mut writer)?;
+        writer.finish()?;
+        Ok(())
       }
       _ => self.save_to_writer(&mut writer),
     }?;
