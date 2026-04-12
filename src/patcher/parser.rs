@@ -1,6 +1,7 @@
 use crate::patcher::Instruction;
 use crate::patcher::PatchError;
 use std::path::PathBuf;
+use std::env;
 
 fn extract_arguments(input: &str) -> Vec<String> {
   let mut args = Vec::new();
@@ -55,15 +56,50 @@ fn validate_instructions(instructions: &[Instruction]) -> Result<(), PatchError>
   Ok(())
 }
 
+
+fn interpolate_env(input: &str) -> String {
+  let mut result = String::new();
+  let mut chars = input.chars().peekable();
+
+  while let Some(c) = chars.next() {
+    if c == '$' {
+      let mut var = String::new();
+
+      while let Some(&next) = chars.peek() {
+        if next.is_alphanumeric() || next == '_' {
+          var.push(next);
+          chars.next();
+        } else {
+          break;
+        }
+      }
+
+      if !var.is_empty() {
+        if let Ok(value) = env::var(&var) {
+          result.push_str(&value);
+        }
+        // si var n'existe pas → remplacé par ""
+      } else {
+        result.push('$');
+      }
+    } else {
+      result.push(c);
+    }
+  }
+
+  result
+}
+
 pub fn parse_instructions(patcherfile: &str) -> Result<Vec<Instruction>, PatchError> {
   let instructions: Vec<Instruction> = patcherfile
     .lines()
     .filter(|line| !line.is_empty())
+    .map(|line| interpolate_env(line))
     .map(|line| {
-      let (cmd, rest) = line.trim().split_once(' ').unwrap_or((line, ""));
+      let (cmd, rest) = line.trim().split_once(' ').unwrap_or((&line, ""));
       match cmd {
         "FROM" => parse_from(extract_arguments(rest)),
-        "EXEC" => parse_exec(extract_arguments(rest)),
+        "EXEC" => parse_exec(rest.to_string()),
         "ADD" => parse_add(extract_arguments(rest)),
         "APPEND" => parse_append(extract_arguments(rest)),
         "SAVE" => parse_save(extract_arguments(rest)),
@@ -88,10 +124,10 @@ fn parse_from(args: Vec<String>) -> Result<Instruction, PatchError> {
   }
 }
 
-fn parse_exec(args: Vec<String>) -> Result<Instruction, PatchError> {
-  match args.len() {
-    0 => Err(PatchError::MissingArgument("EXEC".to_owned())),
-    _ => Ok(Instruction::Exec { args }),
+fn parse_exec(command: String) -> Result<Instruction, PatchError> {
+  match command.is_empty() {
+    true => Err(PatchError::MissingArgument("EXEC".to_owned())),
+    false => Ok(Instruction::Exec { command })
   }
 }
 

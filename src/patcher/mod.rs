@@ -31,7 +31,7 @@ pub enum PatchError {
   ConflictingSaveInstructions,
   MultipleFromInstructions,
   CouldNotInitializeSourceImage(PathBuf),
-  ExecFailed(i32, Vec<String>),
+  ExecFailed(i32, String),
   CannotAddFileBeforeFromInstruction(String),
   CannotAppendFileBeforeFromInstruction(String),
   CannotReadHostFile(PathBuf, std::io::Error),
@@ -73,8 +73,7 @@ impl fmt::Display for PatchError {
       PatchError::MultipleFromInstructions => {
         write!(f, "Multiple FROM instructions")
       }
-      PatchError::ExecFailed(status, args) => {
-        let command = args.join(" ");
+      PatchError::ExecFailed(status, command) => {
         write!(f, "Command failed ({}): `{}`", status, command)
       }
       PatchError::CannotAddFileBeforeFromInstruction(fat_path) => {

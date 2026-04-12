@@ -2,7 +2,7 @@ use rpi_imgpatcher::RpiImage;
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
-
+use std::process::Stdio;
 use crate::patcher::PatchContext;
 use crate::patcher::PatchError;
 
@@ -23,7 +23,7 @@ pub enum Instruction {
   },
   Overwrite,
   Exec {
-    args: Vec<String>,
+    command: String,
   },
 }
 
@@ -31,7 +31,7 @@ impl Instruction {
   pub fn execute(&self, ctx: &mut PatchContext) -> Result<(), PatchError> {
     match self {
       Instruction::From { source_image } => self.execute_from(ctx, source_image),
-      Instruction::Exec { args } => self.execute_exec(ctx, args),
+      Instruction::Exec { command } => self.execute_exec(ctx, command),
       Instruction::AddFile {
         fat_path,
         host_file,
@@ -58,25 +58,23 @@ impl Instruction {
     Ok(())
   }
 
-  fn execute_exec(&self, _ctx: &mut PatchContext, args: &[String]) -> Result<(), PatchError> {
-    if args.is_empty() {
-      return Err(PatchError::MissingArgument("EXEC".to_string()));
-    }
-
-    let mut cmd = Command::new(&args[0]);
-
-    if args.len() > 1 {
-      cmd.args(&args[1..]);
-    }
-
-    let status = cmd
+  fn execute_exec(&self, _ctx: &mut PatchContext, command: &String) -> Result<(), PatchError> {
+    // println!("COMMAND RAW: {:?}", command);
+    let status = Command::new("sh")
+      .stderr(Stdio::null())
+      .arg("-o")
+      .arg("pipefail")
+      .arg("-c")
+      .arg(command)
       .status()
-      .map_err(|_| PatchError::ExecFailed(-1, args.to_owned()))?;
+      .map_err(|_| PatchError::ExecFailed(-1, command.to_owned()))?;
 
+    // println!("STATUS: {:?}", status);
     if !status.success() {
       let code = status.code().unwrap_or(-1);
-      return Err(PatchError::ExecFailed(code, args.to_owned()));
+      return Err(PatchError::ExecFailed(code, command.to_owned()));
     }
+    // println!("STATUS: {:?} : {:?}", status.success(), status.code());
 
     Ok(())
   }
