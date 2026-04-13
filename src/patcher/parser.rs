@@ -139,6 +139,9 @@ fn parse_append(args: Vec<String>) -> Result<Instruction, PatchError> {
       fat_path: src.clone(),
       host_file: PathBuf::from(dst),
     }),
+    [kind, append_conf] if kind == "CMDLINE" => Ok(Instruction::AppendCmdline {
+      append_conf: append_conf.clone(),
+    }),
     _ => Err(PatchError::InvalidArguments("ADD".to_owned(), args)),
   }
 }

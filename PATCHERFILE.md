@@ -142,6 +142,31 @@ Convention:
 
 - Destination is always written first.
 
+## `APPEND CMDLINE`
+
+Appends a configuration string to the `cmdline.txt` boot file.
+
+```text
+APPEND CMDLINE "systemd.run=/boot/firstrun.sh systemd.run_success_action=reboot systemd.unit=kernel-command-line.target"
+```
+
+Arguments:
+
+- `append_conf`: Configuration string.
+
+Behavior:
+
+- Operates only on `cmdline.txt`.
+- The existing content is treated as a single line.
+- Trailing newlines are removed.
+- A single space is inserted if needed.
+- The append_conf string is appended to the end of the line.
+- The file is written back without a trailing newline.
+
+Use case:
+
+- Typically used to configure `firstrun.sh` execution on first boot.
+
 ## `SAVE`
 
 Writes the patched image to a new output file.

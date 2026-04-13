@@ -23,3 +23,5 @@ run: $(TARGET)
 
 clean:
 	rm -f $(TARGET)
+	rm -rf out/*.img
+	rm -rf out/*.img.xz

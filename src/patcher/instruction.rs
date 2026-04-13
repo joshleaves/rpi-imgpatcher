@@ -18,6 +18,9 @@ pub enum Instruction {
     fat_path: String,
     host_file: PathBuf,
   },
+  AppendCmdline {
+    append_conf: String,
+  },
   Save {
     output_image: PathBuf,
   },
@@ -39,6 +42,7 @@ impl Instruction {
         fat_path,
         host_file,
       } => self.execute_append_file(ctx, fat_path, host_file),
+      Instruction::AppendCmdline { append_conf } => self.execute_append_cmdline(ctx, append_conf),
       Instruction::Save { output_image } => self.execute_save(ctx, output_image),
     }
   }
@@ -113,6 +117,29 @@ impl Instruction {
     rpi_image
       .append_bytes(fat_path, &bytes)
       .map_err(|err| PatchError::CouldNotWriteToFat(fat_path.to_owned(), err))?;
+
+    Ok(())
+  }
+
+  fn execute_append_cmdline(
+    &self,
+    ctx: &mut PatchContext,
+    append_conf: &String,
+  ) -> Result<(), PatchError> {
+    let Some(rpi_image) = &mut ctx.rpi_image else {
+      return Err(PatchError::CannotAppendToCmdlineBeforeFromInstruction);
+    };
+    let Ok(mut buf) = rpi_image.read_file("cmdline.txt") else {
+      return Err(PatchError::CannotReadCmdlineTxt);
+    };
+    while matches!(buf.last(), Some(b'\n' | b'\r')) {
+      buf.pop();
+    }
+    buf.push(b' ');
+    buf.extend_from_slice(append_conf.as_bytes());
+    rpi_image
+      .write_bytes("cmdline.txt", &buf)
+      .map_err(|_| PatchError::CannotAppendtoCmdlineTxt)?;
 
     Ok(())
   }

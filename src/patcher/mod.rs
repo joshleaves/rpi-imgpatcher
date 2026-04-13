@@ -33,6 +33,9 @@ pub enum PatchError {
   ExecFailed(i32, String),
   CannotAddFileBeforeFromInstruction(String),
   CannotAppendFileBeforeFromInstruction(String),
+  CannotAppendToCmdlineBeforeFromInstruction,
+  CannotReadCmdlineTxt,
+  CannotAppendtoCmdlineTxt,
   CannotReadHostFile(PathBuf, std::io::Error),
   CouldNotWriteToFat(String, rpi_image::Error),
   CannotSaveBeforeFromInstruction(PathBuf),
@@ -83,6 +86,15 @@ impl fmt::Display for PatchError {
           "Cannot use ADD FILE before FROM instruction: {}",
           fat_path
         )
+      }
+      PatchError::CannotAppendToCmdlineBeforeFromInstruction => {
+        write!(f, "Cannot APPEND CMDLINE before FROM instruction")
+      }
+      PatchError::CannotReadCmdlineTxt => {
+        write!(f, "Cannot read `cmdline.txt`")
+      }
+      PatchError::CannotAppendtoCmdlineTxt => {
+        write!(f, "Error writing `cmdline.txt`")
       }
       PatchError::CannotReadHostFile(host_file, io_error) => {
         write!(f, "Cannot read host file {:?}: {}", host_file, io_error)
