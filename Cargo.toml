@@ -1,6 +1,6 @@
 [package]
 name = "rpi-imgpatcher"
-version = "0.9.3"
+version = "0.9.4"
 edition = "2024"
 
 authors = ["Arnaud 'red' Rouyer"]
@@ -49,5 +49,6 @@ include = [
   "rpi_image_append_bytes",
   "rpi_image_append_string",
   "rpi_image_save_to_file",
+  "rpi_image_save_to_fd",
   "rpi_imgpatcher_last_error_message"
 ]

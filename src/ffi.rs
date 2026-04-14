@@ -222,6 +222,25 @@ pub extern "C" fn rpi_image_append_bytes(
   }
 }
 
+// pub(crate) fn save_to_fd(self, fd: RawFd) -> Result<(), Error>
+/// Consumes the provided file descriptor and closes it before returning.
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
+#[unsafe(no_mangle)]
+pub extern "C" fn rpi_image_save_to_fd(rpi_image: *mut RpiImage, fd: i32) -> i64 {
+  check_not_null!(rpi_image, -1);
+
+  let rpi_image = unsafe { Box::from_raw(rpi_image) };
+
+  match rpi_image.save_to_fd(fd) {
+    Err(err) => {
+      #[cfg(feature = "ffi_debug")]
+      set_last_error_message(err.to_string());
+      err.ffi() as i64
+    }
+    Ok(_) => 0,
+  }
+}
+
 // pub fn save_to_file(self, file: impl AsRef<Path>) -> Result<(), Error>
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
 #[unsafe(no_mangle)]

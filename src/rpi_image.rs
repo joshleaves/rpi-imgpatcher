@@ -4,6 +4,7 @@ use lzma_rust2::{XzOptions, XzWriterMt};
 use std::fs::{File, OpenOptions};
 use std::io::{Seek, SeekFrom, Write};
 use std::num::NonZeroU64;
+use std::os::fd::{FromRawFd, RawFd};
 use std::path::{Path, PathBuf};
 use tempfile::NamedTempFile;
 mod layout;
@@ -114,6 +115,14 @@ impl RpiImage {
       _ => self.save_to_writer(&mut writer),
     }?;
     Ok(())
+  }
+
+  /// Write the image to a FD, useful to write directly on disks streams
+  ///
+  /// Consumes the provided file descriptor and closes it before returning.
+  pub(crate) fn save_to_fd(self, fd: RawFd) -> Result<(), Error> {
+    let mut file = unsafe { File::from_raw_fd(fd) };
+    self.save_to_writer(&mut file)
   }
 
   fn save_to_writer<W>(self, writer: &mut W) -> Result<(), Error>
