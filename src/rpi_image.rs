@@ -15,6 +15,8 @@ mod fat_file;
 mod image_io;
 mod source_image;
 use source_image::SourceImageReader;
+mod progress_writer;
+use progress_writer::ProgressWriter;
 
 pub struct RpiImage {
   // Path to the original disk image.
@@ -123,6 +125,18 @@ impl RpiImage {
   pub(crate) fn save_to_fd(self, fd: RawFd) -> Result<(), Error> {
     let mut file = unsafe { File::from_raw_fd(fd) };
     self.save_to_writer(&mut file)
+  }
+
+  /// Write the image to a FD, useful to write directly on disks streams
+  ///
+  /// Consumes the provided file descriptor and closes it before returning.
+  pub(crate) fn save_to_fd_with_progress<F>(self, fd: RawFd, progress: F) -> Result<(), Error>
+  where
+    F: FnMut(u64),
+  {
+    let file = unsafe { File::from_raw_fd(fd) };
+    let mut file_with_progress = ProgressWriter::new(file, progress);
+    self.save_to_writer(&mut file_with_progress)
   }
 
   fn save_to_writer<W>(self, writer: &mut W) -> Result<(), Error>

@@ -49,6 +49,38 @@ Typical approaches involve:
 
 ---
 
+## XZ support
+
+`rpi-imgpatcher` supports `.xz` archives as both inputs and outputs.
+
+In practice, using an `.xz` file as the output format is usually a poor choice. Writing compressed images is significantly slower than writing plain `.img` files, and the resulting archive must still be decompressed before flashing.
+
+Here is a simple benchmark I ran using the same input image, once with a plain `.img` output and once with an `.img.xz` output:
+
+```bash
+$ time NAME=testred cargo run --release
+    Finished release profile [optimized] target(s) in 0.11s
+     Running target/release/rpi-imgpatcher
+
+________________________________________________________
+Executed in    5.79 secs    fish           external
+   usr time    0.21 secs    0.36 millis    0.21 secs
+   sys time    3.74 secs    1.22 millis    3.74 secs
+
+$ time NAME=testredxz cargo run --release
+    Finished release profile [optimized] target(s) in 0.12s
+     Running target/release/rpi-imgpatcher
+
+________________________________________________________
+Executed in   58.12 secs    fish           external
+   usr time   49.67 secs    0.43 millis   49.67 secs
+   sys time    4.34 secs    1.91 millis    4.34 secs
+```
+
+For most workflows, .xz is best used as an input format or as a storage/archive format, not as the final output of the patching step.
+
+--
+
 ## Non-goals
 
 - Modifying the root filesystem (ext4)

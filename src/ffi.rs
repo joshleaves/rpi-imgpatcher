@@ -2,6 +2,7 @@ use crate::RpiImage;
 #[cfg(feature = "ffi_debug")]
 use crate::ffi_debug::set_last_error_message;
 use crate::rpi_image::Error;
+use std::ffi::c_void;
 use std::ffi::{CStr, OsStr, c_char};
 use std::os::unix::ffi::OsStrExt;
 use std::path::PathBuf;
@@ -232,6 +233,36 @@ pub extern "C" fn rpi_image_save_to_fd(rpi_image: *mut RpiImage, fd: i32) -> i64
   let rpi_image = unsafe { Box::from_raw(rpi_image) };
 
   match rpi_image.save_to_fd(fd) {
+    Err(err) => {
+      #[cfg(feature = "ffi_debug")]
+      set_last_error_message(err.to_string());
+      err.ffi() as i64
+    }
+    Ok(_) => 0,
+  }
+}
+
+type ProgressCallback = Option<extern "C" fn(u64, *const c_void)>;
+
+// pub(crate) fn save_to_fd_with_progress<F>(self, fd: RawFd, progress: FnMut(u64)) -> Result<(), Error>
+/// Consumes the provided file descriptor and closes it before returning.
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
+#[unsafe(no_mangle)]
+pub extern "C" fn rpi_image_save_to_fd_with_progress(
+  rpi_image: *mut RpiImage,
+  fd: i32,
+  progress: ProgressCallback,
+  context: *const c_void,
+) -> i64 {
+  check_not_null!(rpi_image, -1);
+  let Some(progress) = progress else {
+    return -1;
+  };
+
+  let rpi_image = unsafe { Box::from_raw(rpi_image) };
+  let cb = |written| progress(written, context);
+
+  match rpi_image.save_to_fd_with_progress(fd, cb) {
     Err(err) => {
       #[cfg(feature = "ffi_debug")]
       set_last_error_message(err.to_string());
