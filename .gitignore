@@ -3,3 +3,5 @@
 /tests/ffi_c/out
 
 /Patcherfile
+FAT_*
+/*.img
