@@ -6,7 +6,7 @@ where
   R: Read,
   W: Write,
 {
-  std::io::copy(src, dst).map_err(|_| Error::Io)
+  std::io::copy(src, dst).map_err(Error::Io)
 }
 
 pub fn copy_exact_n<R, W>(src: &mut R, dst: &mut W, length: u64) -> Result<u64, Error>

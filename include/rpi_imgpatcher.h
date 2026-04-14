@@ -41,4 +41,6 @@ int64_t rpi_image_append_bytes(struct RpiImage *rpi_image,
 
 int64_t rpi_image_save_to_file(struct RpiImage *rpi_image, const char *file);
 
+char * rpi_imgpatcher_last_error_message();
+
 #endif  /* RPI_IMGPATCHER_H */

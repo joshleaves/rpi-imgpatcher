@@ -1,4 +1,6 @@
 use crate::RpiImage;
+#[cfg(feature = "ffi_debug")]
+use crate::ffi_debug::set_last_error_message;
 use crate::rpi_image::Error;
 use std::ffi::{CStr, OsStr, c_char};
 use std::os::unix::ffi::OsStrExt;
@@ -13,9 +15,11 @@ macro_rules! check_not_null {
 }
 
 macro_rules! return_out {
-  ($out:expr, $err:expr) => {{
+  ($out:expr, $err:expr, $type:ty) => {{
+    #[cfg(feature = "ffi_debug")]
+    set_last_error_message($err.to_string());
     if !$out.is_null() {
-      unsafe { *$out = $err };
+      unsafe { *$out = $err.ffi() as $type };
     }
     return -1;
   }};
@@ -76,14 +80,14 @@ pub extern "C" fn rpi_image_write_file(
   out_error: *mut u32,
 ) -> i64 {
   if rpi_image.is_null() {
-    return_out!(out_error, Error::NullPointer as u32);
+    return_out!(out_error, Error::NullPointer, u32);
   }
 
   let Some(fat_path) = c_char_to_string(fat_path) else {
-    return_out!(out_error, Error::InvalidArgument as u32);
+    return_out!(out_error, Error::InvalidArgument, u32);
   };
   let Some(file) = c_char_to_pathbuf(file) else {
-    return_out!(out_error, Error::InvalidArgument as u32);
+    return_out!(out_error, Error::InvalidArgument, u32);
   };
   let rpi_image = unsafe { &mut *rpi_image };
   match rpi_image.write_file(&fat_path, file) {
@@ -91,7 +95,7 @@ pub extern "C" fn rpi_image_write_file(
       success_out!(out_error, bytes_written as i64);
     }
     Err(err) => {
-      return_out!(out_error, err as u32);
+      return_out!(out_error, err, u32);
     }
   }
 }
@@ -106,14 +110,14 @@ pub extern "C" fn rpi_image_write_string(
   out_error: *mut u32,
 ) -> i64 {
   if rpi_image.is_null() {
-    return_out!(out_error, Error::NullPointer as u32);
+    return_out!(out_error, Error::NullPointer, u32);
   }
 
   let Some(fat_path) = c_char_to_string(fat_path) else {
-    return_out!(out_error, Error::InvalidArgument as u32);
+    return_out!(out_error, Error::InvalidArgument, u32);
   };
   let Some(string) = c_char_to_string(string) else {
-    return_out!(out_error, Error::InvalidArgument as u32);
+    return_out!(out_error, Error::InvalidArgument, u32);
   };
   let rpi_image = unsafe { &mut *rpi_image };
   match rpi_image.write_bytes(&fat_path, string.as_bytes()) {
@@ -121,7 +125,7 @@ pub extern "C" fn rpi_image_write_string(
       success_out!(out_error, bytes_written as i64);
     }
     Err(err) => {
-      return_out!(out_error, err as u32);
+      return_out!(out_error, err, u32);
     }
   }
 }
@@ -136,14 +140,14 @@ pub extern "C" fn rpi_image_write_bytes(
   out_error: *mut u32,
 ) -> i64 {
   if rpi_image.is_null() {
-    return_out!(out_error, Error::NullPointer as u32);
+    return_out!(out_error, Error::NullPointer, u32);
   }
   if bytes_ptr.is_null() {
-    return_out!(out_error, Error::NullPointer as u32);
+    return_out!(out_error, Error::NullPointer, u32);
   }
 
   let Some(fat_path) = c_char_to_string(fat_path) else {
-    return_out!(out_error, Error::InvalidArgument as u32);
+    return_out!(out_error, Error::InvalidArgument, u32);
   };
   let bytes = unsafe { std::slice::from_raw_parts(bytes_ptr, bytes_len) };
   let rpi_image = unsafe { &mut *rpi_image };
@@ -152,7 +156,7 @@ pub extern "C" fn rpi_image_write_bytes(
       success_out!(out_error, bytes_written as i64);
     }
     Err(err) => {
-      return_out!(out_error, err as u32);
+      return_out!(out_error, err, u32);
     }
   }
 }
@@ -167,14 +171,14 @@ pub extern "C" fn rpi_image_append_string(
   out_error: *mut u32,
 ) -> i64 {
   if rpi_image.is_null() {
-    return_out!(out_error, Error::NullPointer as u32);
+    return_out!(out_error, Error::NullPointer, u32);
   }
 
   let Some(fat_path) = c_char_to_string(fat_path) else {
-    return_out!(out_error, Error::InvalidArgument as u32);
+    return_out!(out_error, Error::InvalidArgument, u32);
   };
   let Some(string) = c_char_to_string(string) else {
-    return_out!(out_error, Error::InvalidArgument as u32);
+    return_out!(out_error, Error::InvalidArgument, u32);
   };
   let rpi_image = unsafe { &mut *rpi_image };
   match rpi_image.append_bytes(&fat_path, string.as_bytes()) {
@@ -182,7 +186,7 @@ pub extern "C" fn rpi_image_append_string(
       success_out!(out_error, bytes_written as i64);
     }
     Err(err) => {
-      return_out!(out_error, err as u32);
+      return_out!(out_error, err, u32);
     }
   }
 }
@@ -197,14 +201,14 @@ pub extern "C" fn rpi_image_append_bytes(
   out_error: *mut u32,
 ) -> i64 {
   if rpi_image.is_null() {
-    return_out!(out_error, Error::NullPointer as u32);
+    return_out!(out_error, Error::NullPointer, u32);
   }
   if bytes_ptr.is_null() {
-    return_out!(out_error, Error::NullPointer as u32);
+    return_out!(out_error, Error::NullPointer, u32);
   }
 
   let Some(fat_path) = c_char_to_string(fat_path) else {
-    return_out!(out_error, Error::InvalidArgument as u32);
+    return_out!(out_error, Error::InvalidArgument, u32);
   };
   let bytes = unsafe { std::slice::from_raw_parts(bytes_ptr, bytes_len) };
   let rpi_image = unsafe { &mut *rpi_image };
@@ -213,7 +217,7 @@ pub extern "C" fn rpi_image_append_bytes(
       success_out!(out_error, bytes_written as i64);
     }
     Err(err) => {
-      return_out!(out_error, err as u32);
+      return_out!(out_error, err, u32);
     }
   }
 }
@@ -225,12 +229,18 @@ pub extern "C" fn rpi_image_save_to_file(rpi_image: *mut RpiImage, file: *const 
   check_not_null!(rpi_image, -1);
 
   let Some(file) = c_char_to_pathbuf(file) else {
-    return Error::InvalidArgument as i64;
+    #[cfg(feature = "ffi_debug")]
+    set_last_error_message(Error::InvalidArgument.to_string());
+    return Error::InvalidArgument.ffi() as i64;
   };
   let rpi_image = unsafe { Box::from_raw(rpi_image) };
 
   match rpi_image.save_to_file(file) {
-    Err(err) => err as i64,
+    Err(err) => {
+      #[cfg(feature = "ffi_debug")]
+      set_last_error_message(err.to_string());
+      err.ffi() as i64
+    }
     Ok(_) => 0,
   }
 }
