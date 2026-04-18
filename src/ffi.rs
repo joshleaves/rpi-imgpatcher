@@ -11,6 +11,8 @@ use std::os::fd::FromRawFd;
 use std::os::unix::ffi::OsStrExt;
 use std::path::PathBuf;
 
+type ProgressCallback = Option<extern "C" fn(u64, *const c_void)>;
+
 macro_rules! check_not_null {
   ($ptr:expr, $ret:expr) => {
     if $ptr.is_null() {
@@ -300,7 +302,6 @@ pub extern "C" fn rpi_image_save_to_file_with_progress(
 }
 
 // pub(crate) fn save_to_fd(self, fd: RawFd) -> Result<(), Error>
-/// Consumes the provided file descriptor and closes it before returning.
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
 #[unsafe(no_mangle)]
 pub extern "C" fn rpi_image_save_to_fd(rpi_image: *mut RpiImage, fd: i32) -> i64 {
@@ -319,10 +320,7 @@ pub extern "C" fn rpi_image_save_to_fd(rpi_image: *mut RpiImage, fd: i32) -> i64
   }
 }
 
-type ProgressCallback = Option<extern "C" fn(u64, *const c_void)>;
-
 // pub(crate) fn save_to_fd_with_progress<F>(self, fd: RawFd, progress: FnMut(u64)) -> Result<(), Error>
-/// Consumes the provided file descriptor and closes it before returning.
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
 #[unsafe(no_mangle)]
 pub extern "C" fn rpi_image_save_to_fd_with_progress(
@@ -369,12 +367,15 @@ pub extern "C" fn rpi_image_verify_file(rpi_image: *mut RpiImage, file: *const c
       set_last_error_message(err.to_string());
       err.ffi() as i64
     }
-    Ok(false) => Error::CopyMismatch.ffi() as i64,
+    Ok(false) => {
+      #[cfg(feature = "ffi_debug")]
+      set_last_error_message(Error::CopyMismatch.to_string());
+      Error::CopyMismatch.ffi() as i64
+    }
     Ok(true) => 0,
   }
 }
 
-// pub(crate) fn save_to_fd_with_progress<F>(self, fd: RawFd, progress: FnMut(u64)) -> Result<(), Error>
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
 #[unsafe(no_mangle)]
 pub extern "C" fn rpi_image_verify_file_with_progress(
@@ -412,7 +413,69 @@ pub extern "C" fn rpi_image_verify_file_with_progress(
       set_last_error_message(err.to_string());
       err.ffi() as i64
     }
-    Ok(false) => Error::CopyMismatch.ffi() as i64,
+    Ok(false) => {
+      #[cfg(feature = "ffi_debug")]
+      set_last_error_message(Error::CopyMismatch.to_string());
+      Error::CopyMismatch.ffi() as i64
+    }
+    Ok(true) => 0,
+  }
+}
+
+// pub(crate) fn save_to_fd(self, fd: RawFd) -> Result<(), Error>
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
+#[unsafe(no_mangle)]
+pub extern "C" fn rpi_image_verify_fd(rpi_image: *mut RpiImage, fd: i32) -> i64 {
+  check_not_null!(rpi_image, -1);
+
+  let mut rpi_image = unsafe { Box::from_raw(rpi_image) };
+  let mut file = unsafe { File::from_raw_fd(fd) };
+
+  match rpi_image.verify_reader(&mut file) {
+    Err(err) => {
+      #[cfg(feature = "ffi_debug")]
+      set_last_error_message(err.to_string());
+      err.ffi() as i64
+    }
+    Ok(false) => {
+      #[cfg(feature = "ffi_debug")]
+      set_last_error_message(Error::CopyMismatch.to_string());
+      Error::CopyMismatch.ffi() as i64
+    }
+    Ok(true) => 0,
+  }
+}
+
+// pub(crate) fn verify_fd_with_progress<F>(self, fd: RawFd, progress: FnMut(u64)) -> Result<(), Error>
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
+#[unsafe(no_mangle)]
+pub extern "C" fn rpi_image_verify_fd_with_progress(
+  rpi_image: *mut RpiImage,
+  fd: i32,
+  progress: ProgressCallback,
+  context: *const c_void,
+) -> i64 {
+  check_not_null!(rpi_image, -1);
+  let Some(progress) = progress else {
+    return -1;
+  };
+
+  let mut rpi_image = unsafe { Box::from_raw(rpi_image) };
+  let file = unsafe { File::from_raw_fd(fd) };
+  let cb = |read| progress(read, context);
+  let mut reader = ProgressReader::new(file, cb);
+
+  match rpi_image.verify_reader(&mut reader) {
+    Err(err) => {
+      #[cfg(feature = "ffi_debug")]
+      set_last_error_message(err.to_string());
+      err.ffi() as i64
+    }
+    Ok(false) => {
+      #[cfg(feature = "ffi_debug")]
+      set_last_error_message(Error::CopyMismatch.to_string());
+      Error::CopyMismatch.ffi() as i64
+    }
     Ok(true) => 0,
   }
 }

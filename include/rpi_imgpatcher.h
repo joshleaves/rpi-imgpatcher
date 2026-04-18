@@ -68,6 +68,14 @@ int64_t rpi_image_verify_file_with_progress(
   const char *file,
   void (*progress)(uint64_t, void *),
   void *context);
+int64_t rpi_image_verify_fd(
+  struct RpiImage *rpi_image,
+  int32_t file_descriptor);
+int64_t rpi_image_verify_fd_with_progress(
+  struct RpiImage *rpi_image,
+  int32_t file_descriptor,
+  void (*progress)(uint64_t, void *),
+  void *context);
 
 void rpi_image_free(struct RpiImage *rpi_image);
 
