@@ -302,10 +302,7 @@ pub extern "C" fn rpi_image_save_to_file_with_progress(
   let mut writer = ProgressWriter::new(file, cb);
   match rpi_image.save_to_writer(&mut writer) {
     Err(err) => return_error!(err),
-    Ok(_) => match writer.inner().sync_all() {
-      Err(err) => return_error!(err),
-      Ok(_) => 0,
-    },
+    Ok(_) => 0,
   }
 }
 
@@ -324,10 +321,7 @@ pub extern "C" fn rpi_image_save_to_fd(rpi_image: *mut RpiImage, fd: i32) -> i64
 
   match rpi_image.save_to_writer(&mut file) {
     Err(err) => return_error!(err),
-    Ok(_) => match file.sync_all() {
-      Err(err) => return_error!(err),
-      Ok(_) => 0,
-    },
+    Ok(_) => 0,
   }
 }
 
@@ -356,10 +350,7 @@ pub extern "C" fn rpi_image_save_to_fd_with_progress(
 
   match rpi_image.save_to_writer(&mut writer) {
     Err(err) => return_error!(err),
-    Ok(_) => match writer.inner().sync_all() {
-      Err(err) => return_error!(err),
-      Ok(_) => 0,
-    },
+    Ok(_) => 0,
   }
 }
 
