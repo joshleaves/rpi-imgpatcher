@@ -1,3 +1,4 @@
+#[cfg(feature = "ffi")]
 pub mod ffi;
 #[cfg(feature = "ffi_debug")]
 pub mod ffi_debug;

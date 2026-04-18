@@ -67,7 +67,7 @@ jobs:
           targets: ${{ matrix.target }}
 
       - name: Build static library (.a)
-        run: cargo build --release --target ${{ matrix.target }}
+        run: cargo build --release --features ffi --target ${{ matrix.target }}
 
       - name: Prepare artifact
         run: |

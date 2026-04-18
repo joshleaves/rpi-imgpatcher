@@ -36,18 +36,9 @@ Typical approaches involve:
 - no manual mounting
 - reproducible image customization
 
----
-
-## Features (planned / in progress)
-
-- [x] Extract boot partition from `.img`
-- [x] Modify FAT filesystem safely
-- [x] Inject files before first boot
-- [x] Deterministic image patching
-- [x] Declarative patch format (à la Dockerfile)
-
 --
 ## Build features
+- `ffi`: Even if it was my first motivation, the base library doesn't requires it. Therefore, it becomes a feature.
 - `ffi_debug`: Exposes a `char * rpi_imgpatcher_last_error_message()` function that returns a heap-allocated string containing the last error message encountered by the FFI (global, not thread-safe). The returned buffer must be freed manually using `void rpi_imgpatcher_last_error_free(const char *error)`.
 
 - `buffered_copy`: While `std::io::copy` is already very efficient, a small (~5%) performance improvement can be observed with manual buffering in some I/O-heavy scenarios.  The default buffer size is 4MB (based on local benchmarks), but it can be overridden at build time using the `RPI_COPY_BUFFER_SIZE` environment variable.

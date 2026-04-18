@@ -14,6 +14,7 @@ pub enum Error {
   Mbr(mbrman::Error),
   TempFile(PersistError),
   AccessFatAfterSave,
+  CannotDuplicateFD,
 }
 
 #[repr(u32)]
@@ -27,6 +28,7 @@ pub enum FfiError {
   Mbr = 7,
   TempFile = 8,
   AccessFatAfterSave = 9,
+  CannotDuplicateFD = 10,
 }
 
 impl Error {
@@ -41,6 +43,7 @@ impl Error {
       Error::Mbr(_) => FfiError::Mbr,
       Error::TempFile(_) => FfiError::TempFile,
       Error::AccessFatAfterSave => FfiError::AccessFatAfterSave,
+      Error::CannotDuplicateFD => FfiError::CannotDuplicateFD,
     }
   }
 }
@@ -57,6 +60,7 @@ impl fmt::Display for Error {
       Error::Mbr(e) => write!(f, "MBR Error ({})", e),
       Error::TempFile(e) => write!(f, "Tempfile Error ({})", e),
       Error::AccessFatAfterSave => write!(f, "Cannot write to FAT after save"),
+      Error::CannotDuplicateFD => write!(f, "Cannot duplicate FD"),
     }
   }
 }

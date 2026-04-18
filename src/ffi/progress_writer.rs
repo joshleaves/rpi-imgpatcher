@@ -22,6 +22,10 @@ where
       on_progress,
     }
   }
+
+  pub fn inner(self) -> W {
+    self.inner
+  }
 }
 
 impl<W, F> Write for ProgressWriter<W, F>

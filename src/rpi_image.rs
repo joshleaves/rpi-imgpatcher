@@ -12,8 +12,6 @@ mod fat_file;
 mod image_io;
 mod source_image;
 use source_image::SourceImageReader;
-pub(crate) mod progress_reader;
-pub(crate) mod progress_writer;
 
 pub struct RpiImage {
   // Path to the original disk image.
