@@ -13,6 +13,8 @@ repository = "https://github.com/joshleaves/rpi-imgpatcher"
 keywords = ["raspberry-pi", "disk-image", "fat32", "ffi", "image"]
 categories = ["filesystem", "command-line-utilities"]
 
+exclude = ["tests/**"]
+
 [lib]
 crate-type = ["rlib", "staticlib"]
 
@@ -36,20 +38,3 @@ tempfile = "3.27.0"
 crc32fast = "1.5.0"
 uuid = { version = "1.23.1", features = ["v4"] }
 
-[package.metadata.cbindgen]
-language = "C"
-pragma_once = true
-include_guard = "RPI_IMGPATCHER_H"
-
-[package.metadata.cbindgen.export]
-include = [
-  "rpi_image_new",
-  "rpi_image_write_file",
-  "rpi_image_write_bytes",
-  "rpi_image_write_string",
-  "rpi_image_append_bytes",
-  "rpi_image_append_string",
-  "rpi_image_save_to_file",
-  "rpi_image_save_to_fd",
-  "rpi_imgpatcher_last_error_message"
-]
