@@ -322,6 +322,10 @@ pub extern "C" fn rpi_image_save_to_fd(rpi_image: *mut RpiImage, fd: i32) -> i64
   match rpi_image.save_to_writer(&mut file) {
     Err(err) => return_error!(err),
     Ok(_) => 0,
+    // Ok(_) => match unsafe { libc::fsync(file.as_raw_fd()) } {
+    //   -1 => return_error!(std::io::Error::last_os_error()),
+    //   _ => 0,
+    // },
   }
 }
 
@@ -351,6 +355,10 @@ pub extern "C" fn rpi_image_save_to_fd_with_progress(
   match rpi_image.save_to_writer(&mut writer) {
     Err(err) => return_error!(err),
     Ok(_) => 0,
+    // Ok(_) => match unsafe { libc::fsync(writer.inner().as_raw_fd()) } {
+    //   -1 => return_error!(std::io::Error::last_os_error()),
+    //   _ => 0,
+    // },
   }
 }
 

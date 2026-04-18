@@ -104,17 +104,25 @@ where
 
   loop {
     let n1 = lhs.read(&mut buf1)?;
-    let n2 = rhs.read(&mut buf2)?;
-
-    if n1 != n2 {
-      return Ok(false);
-    }
-
+    // LHS reaches EOF, victory
     if n1 == 0 {
       return Ok(true);
     }
 
-    if buf1[..n1] != buf2[..n2] {
+    // We try to read just as many bytes from RHS
+    match rhs.read_exact(&mut buf2[..n1]) {
+      Ok(()) => n1,
+      Err(err) => {
+        // UnexpectedEof = our output image is smaller tha the source
+        if err.kind() == std::io::ErrorKind::UnexpectedEof {
+          return Ok(false);
+        }
+        return Err(err.into());
+      }
+    };
+
+    // Let's compare stuff
+    if buf1[..n1] != buf2[..n1] {
       return Ok(false);
     }
   }
