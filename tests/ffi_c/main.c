@@ -32,7 +32,7 @@ int main(int argc,  char **argv) {
 
   printf("written: %lld bytes\n", written);
 
-  int64_t res = rpi_image_save_to_file(img, "out/out.img.xz");
+  int64_t res = rpi_image_save_to_file(img, "out/out.img");
   if (res != 0) {
     printf("save failed, err=%lld\n", res);
     return 1;

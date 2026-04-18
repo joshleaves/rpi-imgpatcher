@@ -145,7 +145,7 @@ impl Instruction {
   }
 
   fn execute_save(&self, ctx: &mut PatchContext, output_image: &PathBuf) -> Result<(), PatchError> {
-    let Some(rpi_image) = ctx.rpi_image.take() else {
+    let Some(rpi_image) = &mut ctx.rpi_image else {
       return Err(PatchError::CannotSaveBeforeFromInstruction(
         output_image.clone(),
       ));

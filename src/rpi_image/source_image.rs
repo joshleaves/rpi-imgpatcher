@@ -1,4 +1,4 @@
-use crate::rpi_image::image_io::{copy_exact, copy_exact_n};
+use crate::rpi_image::image_io::{compare, copy_exact, copy_exact_n};
 use crate::rpi_image::{Error, FatPartitionLayout};
 use lzma_rust2::XzReaderMt;
 use std::fs::File;
@@ -13,18 +13,18 @@ enum SourceImageState {
   Consumed,
 }
 
-pub enum SourceImageFile {
+pub(crate) enum SourceImageFile {
   Plain(File),
   Xz(Box<XzReaderMt<File>>),
 }
 
-pub struct SourceImageReader {
+pub(crate) struct SourceImageReader {
   state: SourceImageState,
   file: SourceImageFile,
 }
 
 impl SourceImageReader {
-  pub fn new(source_image: PathBuf) -> Result<Self, Error> {
+  pub(crate) fn new(source_image: PathBuf) -> Result<Self, Error> {
     let file = match source_image.extension().and_then(|e| e.to_str()) {
       Some("xz") => {
         let source_image = File::open(source_image)?;
@@ -42,7 +42,7 @@ impl SourceImageReader {
     })
   }
 
-  pub fn layout_fat(&mut self) -> Result<FatPartitionLayout, Error> {
+  pub(crate) fn layout_fat(&mut self) -> Result<FatPartitionLayout, Error> {
     if !matches!(self.state, SourceImageState::Created) {
       return Err(Error::InvalidState);
     }
@@ -62,7 +62,7 @@ impl SourceImageReader {
     Ok(layout)
   }
 
-  pub fn extract_fat_to_file(
+  pub(crate) fn extract_fat_to_file(
     &mut self,
     layout: FatPartitionLayout,
     fat_tmp_file: &mut File,
@@ -92,7 +92,7 @@ impl SourceImageReader {
     Ok(())
   }
 
-  pub fn copy_mbr_to_file<W>(
+  pub(crate) fn copy_mbr_to_file<W>(
     &mut self,
     layout: FatPartitionLayout,
     out_img: &mut W,
@@ -113,7 +113,7 @@ impl SourceImageReader {
     Ok(())
   }
 
-  pub fn skip_fat(&mut self, layout: FatPartitionLayout) -> Result<(), Error> {
+  pub(crate) fn skip_fat(&mut self, layout: FatPartitionLayout) -> Result<(), Error> {
     if !matches!(self.state, SourceImageState::MbrRead) {
       return Err(Error::InvalidState);
     }
@@ -132,7 +132,7 @@ impl SourceImageReader {
     Ok(())
   }
 
-  pub fn copy_tail_to_file<W>(&mut self, out_img: &mut W) -> Result<(), Error>
+  pub(crate) fn copy_tail_to_file<W>(&mut self, out_img: &mut W) -> Result<(), Error>
   where
     W: Write,
   {
@@ -147,5 +147,44 @@ impl SourceImageReader {
 
     self.state = SourceImageState::Consumed;
     Ok(())
+  }
+
+  pub(crate) fn verify_mbr<R>(
+    &mut self,
+    layout: FatPartitionLayout,
+    reader: &mut R,
+  ) -> Result<bool, Error>
+  where
+    R: Read,
+  {
+    if !matches!(self.state, SourceImageState::Created) {
+      return Err(Error::InvalidState);
+    }
+    let reader = &mut reader.take(layout.base);
+
+    let result = match &mut self.file {
+      SourceImageFile::Plain(file) => compare(&mut file.take(layout.base), reader),
+      SourceImageFile::Xz(xz_reader_mt) => compare(&mut xz_reader_mt.take(layout.base), reader),
+    }?;
+
+    self.state = SourceImageState::MbrRead;
+    Ok(result)
+  }
+
+  pub(crate) fn verify_tail<R>(&mut self, reader: &mut R) -> Result<bool, Error>
+  where
+    R: Read,
+  {
+    if !matches!(self.state, SourceImageState::FatRead) {
+      return Err(Error::InvalidState);
+    }
+
+    let result = match &mut self.file {
+      SourceImageFile::Plain(file) => compare(file, reader),
+      SourceImageFile::Xz(xz_reader_mt) => compare(xz_reader_mt, reader),
+    }?;
+
+    self.state = SourceImageState::Consumed;
+    Ok(result)
   }
 }

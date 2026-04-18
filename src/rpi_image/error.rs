@@ -13,6 +13,7 @@ pub enum Error {
   Io(std::io::Error),
   Mbr(mbrman::Error),
   TempFile(PersistError),
+  AccessFatAfterSave,
 }
 
 #[repr(u32)]
@@ -25,6 +26,7 @@ pub enum FfiError {
   Io = 6,
   Mbr = 7,
   TempFile = 8,
+  AccessFatAfterSave = 9,
 }
 
 impl Error {
@@ -38,6 +40,7 @@ impl Error {
       Error::Io(_) => FfiError::Io,
       Error::Mbr(_) => FfiError::Mbr,
       Error::TempFile(_) => FfiError::TempFile,
+      Error::AccessFatAfterSave => FfiError::AccessFatAfterSave,
     }
   }
 }
@@ -53,6 +56,7 @@ impl fmt::Display for Error {
       Error::Io(e) => write!(f, "I/O Error ({})", e),
       Error::Mbr(e) => write!(f, "MBR Error ({})", e),
       Error::TempFile(e) => write!(f, "Tempfile Error ({})", e),
+      Error::AccessFatAfterSave => write!(f, "Cannot write to FAT after save"),
     }
   }
 }

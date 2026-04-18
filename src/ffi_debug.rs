@@ -25,3 +25,15 @@ pub extern "C" fn rpi_imgpatcher_last_error_message() -> *const c_char {
       .unwrap_or(std::ptr::null())
   })
 }
+
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
+#[unsafe(no_mangle)]
+pub extern "C" fn rpi_image_last_error_free(error: *mut c_char) {
+  if error.is_null() {
+    return;
+  }
+
+  unsafe {
+    std::mem::drop(Box::from_raw(error));
+  }
+}

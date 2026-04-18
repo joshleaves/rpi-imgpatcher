@@ -40,22 +40,27 @@ Typical approaches involve:
 
 ## Features (planned / in progress)
 
-- Extract boot partition from `.img`
-- Modify FAT filesystem safely
-- Inject files before first boot
-- Deterministic image patching
-- CLI interface
-- Optional declarative patch format (à la Dockerfile)
+- [x] Extract boot partition from `.img`
+- [x] Modify FAT filesystem safely
+- [x] Inject files before first boot
+- [x] Deterministic image patching
+- [x] Declarative patch format (à la Dockerfile)
+
+--
+## Build features
+- `ffi_debug`: Exposes a `char * rpi_imgpatcher_last_error_message()` function that returns a heap-allocated string containing the last error message encountered by the FFI (global, not thread-safe). The returned buffer must be freed manually using `void rpi_imgpatcher_last_error_free(const char *error)`.
+
+- `buffered_copy`: While `std::io::copy` is already very efficient, a small (~5%) performance improvement can be observed with manual buffering in some I/O-heavy scenarios.  The default buffer size is 4MB (based on local benchmarks), but it can be overridden at build time using the `RPI_COPY_BUFFER_SIZE` environment variable.
 
 ---
 
 ## XZ support
 
-`rpi-imgpatcher` supports `.xz` archives as both inputs and outputs.
+`rpi-imgpatcher` supports `.xz` archives as inputs.
 
-In practice, using an `.xz` file as the output format is usually a poor choice. Writing compressed images is significantly slower than writing plain `.img` files, and the resulting archive must still be decompressed before flashing.
+In practice, using an `.xz` file as the output format is usually a poor choice. Writing compressed images is significantly slower than writing plain `.img` files, and the resulting archive must still be decompressed before flashing, so the option was removed.
 
-Here is a simple benchmark I ran using the same input image, once with a plain `.img` output and once with an `.img.xz` output:
+As for performance, here is a simple benchmark I ran using the same input image, once with a plain `.img` output and once with an `.img.xz` output:
 
 ```bash
 $ time NAME=testred cargo run --release
@@ -77,7 +82,7 @@ Executed in   58.12 secs    fish           external
    sys time    4.34 secs    1.91 millis    4.34 secs
 ```
 
-For most workflows, .xz is best used as an input format or as a storage/archive format, not as the final output of the patching step.
+For most workflows, .xz is best used as an input format or as a storage/archive format.
 
 --
 

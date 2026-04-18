@@ -2,8 +2,12 @@ use crate::RpiImage;
 #[cfg(feature = "ffi_debug")]
 use crate::ffi_debug::set_last_error_message;
 use crate::rpi_image::Error;
+use crate::rpi_image::progress_reader::ProgressReader;
+use crate::rpi_image::progress_writer::ProgressWriter;
 use std::ffi::c_void;
 use std::ffi::{CStr, OsStr, c_char};
+use std::fs::{File, OpenOptions};
+use std::os::fd::FromRawFd;
 use std::os::unix::ffi::OsStrExt;
 use std::path::PathBuf;
 
@@ -223,6 +227,78 @@ pub extern "C" fn rpi_image_append_bytes(
   }
 }
 
+// pub fn save_to_file(self, file: impl AsRef<Path>) -> Result<(), Error>
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
+#[unsafe(no_mangle)]
+pub extern "C" fn rpi_image_save_to_file(rpi_image: *mut RpiImage, file: *const c_char) -> i64 {
+  check_not_null!(rpi_image, -1);
+
+  let Some(file) = c_char_to_pathbuf(file) else {
+    #[cfg(feature = "ffi_debug")]
+    set_last_error_message(Error::InvalidArgument.to_string());
+    return Error::InvalidArgument.ffi() as i64;
+  };
+  let mut rpi_image = unsafe { Box::from_raw(rpi_image) };
+
+  match rpi_image.save_to_file(file) {
+    Err(err) => {
+      #[cfg(feature = "ffi_debug")]
+      set_last_error_message(err.to_string());
+      err.ffi() as i64
+    }
+    Ok(_) => 0,
+  }
+}
+
+// pub fn save_to_file(self, file: impl AsRef<Path>) -> Result<(), Error>
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
+#[unsafe(no_mangle)]
+pub extern "C" fn rpi_image_save_to_file_with_progress(
+  rpi_image: *mut RpiImage,
+  file: *const c_char,
+  progress: ProgressCallback,
+  context: *const c_void,
+) -> i64 {
+  check_not_null!(rpi_image, -1);
+  let Some(progress) = progress else {
+    return -1;
+  };
+
+  let Some(file) = c_char_to_pathbuf(file) else {
+    #[cfg(feature = "ffi_debug")]
+    set_last_error_message(Error::InvalidArgument.to_string());
+    return Error::InvalidArgument.ffi() as i64;
+  };
+  let mut rpi_image = unsafe { Box::from_raw(rpi_image) };
+
+  let file = OpenOptions::new()
+    .create(true)
+    .truncate(true)
+    .read(true)
+    .write(true)
+    .open(file);
+  let file = match file {
+    Ok(f) => f,
+    Err(e) => {
+      let e = Error::Io(e);
+      #[cfg(feature = "ffi_debug")]
+      set_last_error_message(e.to_string());
+      return e.ffi() as i64;
+    }
+  };
+
+  let cb = |written| progress(written, context);
+  let mut writer = ProgressWriter::new(file, cb);
+  match rpi_image.save_to_writer(&mut writer) {
+    Err(err) => {
+      #[cfg(feature = "ffi_debug")]
+      set_last_error_message(err.to_string());
+      err.ffi() as i64
+    }
+    Ok(_) => 0,
+  }
+}
+
 // pub(crate) fn save_to_fd(self, fd: RawFd) -> Result<(), Error>
 /// Consumes the provided file descriptor and closes it before returning.
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
@@ -230,9 +306,10 @@ pub extern "C" fn rpi_image_append_bytes(
 pub extern "C" fn rpi_image_save_to_fd(rpi_image: *mut RpiImage, fd: i32) -> i64 {
   check_not_null!(rpi_image, -1);
 
-  let rpi_image = unsafe { Box::from_raw(rpi_image) };
+  let mut rpi_image = unsafe { Box::from_raw(rpi_image) };
+  let mut file = unsafe { File::from_raw_fd(fd) };
 
-  match rpi_image.save_to_fd(fd) {
+  match rpi_image.save_to_writer(&mut file) {
     Err(err) => {
       #[cfg(feature = "ffi_debug")]
       set_last_error_message(err.to_string());
@@ -259,10 +336,12 @@ pub extern "C" fn rpi_image_save_to_fd_with_progress(
     return -1;
   };
 
-  let rpi_image = unsafe { Box::from_raw(rpi_image) };
+  let mut rpi_image = unsafe { Box::from_raw(rpi_image) };
+  let file = unsafe { File::from_raw_fd(fd) };
   let cb = |written| progress(written, context);
+  let mut writer = ProgressWriter::new(file, cb);
 
-  match rpi_image.save_to_fd_with_progress(fd, cb) {
+  match rpi_image.save_to_writer(&mut writer) {
     Err(err) => {
       #[cfg(feature = "ffi_debug")]
       set_last_error_message(err.to_string());
@@ -272,10 +351,9 @@ pub extern "C" fn rpi_image_save_to_fd_with_progress(
   }
 }
 
-// pub fn save_to_file(self, file: impl AsRef<Path>) -> Result<(), Error>
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
 #[unsafe(no_mangle)]
-pub extern "C" fn rpi_image_save_to_file(rpi_image: *mut RpiImage, file: *const c_char) -> i64 {
+pub extern "C" fn rpi_image_verify_file(rpi_image: *mut RpiImage, file: *const c_char) -> i64 {
   check_not_null!(rpi_image, -1);
 
   let Some(file) = c_char_to_pathbuf(file) else {
@@ -283,14 +361,70 @@ pub extern "C" fn rpi_image_save_to_file(rpi_image: *mut RpiImage, file: *const 
     set_last_error_message(Error::InvalidArgument.to_string());
     return Error::InvalidArgument.ffi() as i64;
   };
-  let rpi_image = unsafe { Box::from_raw(rpi_image) };
+  let mut rpi_image = unsafe { Box::from_raw(rpi_image) };
 
-  match rpi_image.save_to_file(file) {
+  match rpi_image.verify_file(file) {
     Err(err) => {
       #[cfg(feature = "ffi_debug")]
       set_last_error_message(err.to_string());
       err.ffi() as i64
     }
-    Ok(_) => 0,
+    Ok(false) => Error::CopyMismatch.ffi() as i64,
+    Ok(true) => 0,
+  }
+}
+
+// pub(crate) fn save_to_fd_with_progress<F>(self, fd: RawFd, progress: FnMut(u64)) -> Result<(), Error>
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
+#[unsafe(no_mangle)]
+pub extern "C" fn rpi_image_verify_file_with_progress(
+  rpi_image: *mut RpiImage,
+  file: *const c_char,
+  progress: ProgressCallback,
+  context: *const c_void,
+) -> i64 {
+  check_not_null!(rpi_image, -1);
+  let Some(progress) = progress else {
+    return -1;
+  };
+
+  let Some(file) = c_char_to_pathbuf(file) else {
+    #[cfg(feature = "ffi_debug")]
+    set_last_error_message(Error::InvalidArgument.to_string());
+    return Error::InvalidArgument.ffi() as i64;
+  };
+  let mut rpi_image = unsafe { Box::from_raw(rpi_image) };
+  let file = match File::open(file) {
+    Ok(f) => f,
+    Err(err) => {
+      let err = Error::Io(err);
+      #[cfg(feature = "ffi_debug")]
+      set_last_error_message(err.to_string());
+      return err.ffi() as i64;
+    }
+  };
+  let cb = |written| progress(written, context);
+  let mut reader = ProgressReader::new(file, cb);
+
+  match rpi_image.verify_reader(&mut reader) {
+    Err(err) => {
+      #[cfg(feature = "ffi_debug")]
+      set_last_error_message(err.to_string());
+      err.ffi() as i64
+    }
+    Ok(false) => Error::CopyMismatch.ffi() as i64,
+    Ok(true) => 0,
+  }
+}
+
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
+#[unsafe(no_mangle)]
+pub extern "C" fn rpi_image_free(rpi_image: *mut RpiImage) {
+  if rpi_image.is_null() {
+    return;
+  };
+
+  unsafe {
+    std::mem::drop(Box::from_raw(rpi_image));
   }
 }

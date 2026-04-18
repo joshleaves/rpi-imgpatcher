@@ -12,37 +12,45 @@ typedef struct RpiImage RpiImage;
 
 struct RpiImage *rpi_image_new(const char *image_path);
 
-int64_t rpi_image_write_file(struct RpiImage *rpi_image,
-                             const char *fat_path,
-                             const char *file,
-                             uint32_t *out_error);
+int64_t rpi_image_write_file(
+  struct RpiImage *rpi_image,
+  const char *fat_path,
+  const char *file,
+  uint32_t *out_error);
 
-int64_t rpi_image_write_string(struct RpiImage *rpi_image,
-                               const char *fat_path,
-                               const char *string,
-                               uint32_t *out_error);
+int64_t rpi_image_write_string(
+  struct RpiImage *rpi_image,
+  const char *fat_path,
+  const char *string,
+  uint32_t *out_error);
 
-int64_t rpi_image_write_bytes(struct RpiImage *rpi_image,
-                              const char *fat_path,
-                              const uint8_t *bytes_ptr,
-                              uintptr_t bytes_len,
-                              uint32_t *out_error);
+int64_t rpi_image_write_bytes(
+  struct RpiImage *rpi_image,
+  const char *fat_path,
+  const uint8_t *bytes_ptr,
+  uintptr_t bytes_len,
+  uint32_t *out_error);
 
-int64_t rpi_image_append_string(struct RpiImage *rpi_image,
-                                const char *fat_path,
-                                const char *string,
-                                uint32_t *out_error);
-
-int64_t rpi_image_append_bytes(struct RpiImage *rpi_image,
-                               const char *fat_path,
-                               const uint8_t *bytes_ptr,
-                               uintptr_t bytes_len,
-                               uint32_t *out_error);
+int64_t rpi_image_append_string(
+  struct RpiImage *rpi_image,
+  const char *fat_path,
+  const char *string,
+  uint32_t *out_error);
+int64_t rpi_image_append_bytes(
+  struct RpiImage *rpi_image,
+  const char *fat_path,
+  const uint8_t *bytes_ptr,
+  uintptr_t bytes_len,
+  uint32_t *out_error);
 
 int64_t rpi_image_save_to_file(
   struct RpiImage *rpi_image,
-  const char *file_name);
-
+  const char *file);
+int64_t rpi_image_save_to_file_with_progress(
+  struct RpiImage *rpi_image,
+  const char *file,
+  void (*progress)(uint64_t, void *),
+  void *context);
 int64_t rpi_image_save_to_fd(
   struct RpiImage *rpi_image,
   int32_t file_descriptor);
@@ -52,6 +60,18 @@ int64_t rpi_image_save_to_fd_with_progress(
   void (*progress)(uint64_t, void *),
   void *context);
 
+int64_t rpi_image_verify_file(
+  struct RpiImage *rpi_image,
+  const char *file);
+int64_t rpi_image_verify_file_with_progress(
+  struct RpiImage *rpi_image,
+  const char *file,
+  void (*progress)(uint64_t, void *),
+  void *context);
+
+void rpi_image_free(struct RpiImage *rpi_image);
+
 char * rpi_imgpatcher_last_error_message();
+void rpi_imgpatcher_last_error_free(char *error);
 
 #endif  /* RPI_IMGPATCHER_H */

@@ -1,10 +1,7 @@
 use fatfs::FileSystem;
 use fscommon::BufStream;
-use lzma_rust2::{XzOptions, XzWriterMt};
 use std::fs::{File, OpenOptions};
-use std::io::{Seek, SeekFrom, Write};
-use std::num::NonZeroU64;
-use std::os::fd::{FromRawFd, RawFd};
+use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use tempfile::NamedTempFile;
 mod layout;
@@ -15,8 +12,8 @@ mod fat_file;
 mod image_io;
 mod source_image;
 use source_image::SourceImageReader;
-mod progress_writer;
-use progress_writer::ProgressWriter;
+pub(crate) mod progress_reader;
+pub(crate) mod progress_writer;
 
 pub struct RpiImage {
   // Path to the original disk image.
@@ -30,7 +27,7 @@ pub struct RpiImage {
   fat_tmp_path: PathBuf,
 
   // Open FAT workspace backed by the extracted temporary file.
-  fat: FileSystem<BufStream<File>>,
+  fat: Option<FileSystem<BufStream<File>>>,
 }
 
 impl RpiImage {
@@ -58,7 +55,7 @@ impl RpiImage {
       layout,
 
       fat_tmp_path,
-      fat,
+      fat: Some(fat),
     })
   }
 
@@ -68,32 +65,44 @@ impl RpiImage {
   /// including any prior writes that have not yet been saved back to the
   /// source image.
   pub fn read_file(&self, fat_path: &str) -> Result<Vec<u8>, Error> {
-    fat_file::read_file(&self.fat, fat_path)
+    let Some(fat) = &self.fat else {
+      return Err(Error::AccessFatAfterSave);
+    };
+    fat_file::read_file(fat, fat_path)
   }
 
   /// Create or replace a file in the extracted FAT workspace using the
   /// contents of a file from the host filesystem.
   pub fn write_file(&mut self, fat_path: &str, file: impl AsRef<Path>) -> Result<u64, Error> {
+    let Some(fat) = &self.fat else {
+      return Err(Error::AccessFatAfterSave);
+    };
     let mut file = File::open(file)?;
-    fat_file::write_file(&self.fat, fat_path, &mut file)
+    fat_file::write_file(fat, fat_path, &mut file)
   }
 
   /// Create or replace a file in the extracted FAT workspace using raw bytes.
   pub fn write_bytes(&mut self, fat_path: &str, bytes: &[u8]) -> Result<u64, Error> {
-    fat_file::write_bytes(&self.fat, fat_path, bytes)
+    let Some(fat) = &self.fat else {
+      return Err(Error::AccessFatAfterSave);
+    };
+    fat_file::write_bytes(fat, fat_path, bytes)
   }
 
   /// Append bytes to a file in the extracted FAT workspace.
   ///
   /// If the file does not exist, it is created first.
   pub fn append_bytes(&mut self, fat_path: &str, bytes: &[u8]) -> Result<u64, Error> {
-    fat_file::append_bytes(&self.fat, fat_path, bytes)
+    let Some(fat) = &self.fat else {
+      return Err(Error::AccessFatAfterSave);
+    };
+    fat_file::append_bytes(fat, fat_path, bytes)
   }
 
   /// Rebuild the full disk image into a new output file.
   ///
   /// The original image remains untouched.
-  pub fn save_to_file(self, out_file: impl AsRef<Path>) -> Result<(), Error> {
+  pub fn save_to_file(&mut self, out_file: impl AsRef<Path>) -> Result<(), Error> {
     let path = out_file.as_ref();
 
     let mut writer = OpenOptions::new()
@@ -103,63 +112,52 @@ impl RpiImage {
       .write(true)
       .open(path)?;
 
-    match path.extension().and_then(|e| e.to_str()) {
-      Some("xz") => {
-        let opts = XzOptions {
-          block_size: Some(NonZeroU64::new(4 * 1024 * 1024).unwrap()),
-          ..Default::default()
-        };
-        let mut writer = XzWriterMt::<File>::new(writer, opts, 0)?;
-        self.save_to_writer(&mut writer)?;
-        writer.finish()?;
-        Ok(())
-      }
-      _ => self.save_to_writer(&mut writer),
-    }?;
-    Ok(())
+    self.save_to_writer(&mut writer)
   }
 
-  /// Write the image to a FD, useful to write directly on disks streams
-  ///
-  /// Consumes the provided file descriptor and closes it before returning.
-  pub(crate) fn save_to_fd(self, fd: RawFd) -> Result<(), Error> {
-    let mut file = unsafe { File::from_raw_fd(fd) };
-    self.save_to_writer(&mut file)
-  }
-
-  /// Write the image to a FD, useful to write directly on disks streams
-  ///
-  /// Consumes the provided file descriptor and closes it before returning.
-  pub(crate) fn save_to_fd_with_progress<F>(self, fd: RawFd, progress: F) -> Result<(), Error>
-  where
-    F: FnMut(u64),
-  {
-    let file = unsafe { File::from_raw_fd(fd) };
-    let mut file_with_progress = ProgressWriter::new(file, progress);
-    self.save_to_writer(&mut file_with_progress)
-  }
-
-  fn save_to_writer<W>(self, writer: &mut W) -> Result<(), Error>
+  pub fn save_to_writer<W>(&mut self, writer: &mut W) -> Result<(), Error>
   where
     W: Write,
   {
-    let RpiImage {
-      fat,
-      layout,
-      image_path,
-      fat_tmp_path,
-      ..
-    } = self;
-    std::mem::drop(fat);
+    self.fat = None;
 
-    let mut image_file = SourceImageReader::new(image_path.clone())?;
-    let mut fat = File::open(fat_tmp_path)?;
-    image_file.copy_mbr_to_file(layout, writer)?;
-    image_file.skip_fat(layout)?;
-    image_io::copy_exact_n(&mut fat, writer, layout.length)?;
+    let mut image_file = SourceImageReader::new(self.image_path.clone())?;
+    let mut fat = File::open(self.fat_tmp_path.clone())?;
+    image_file.copy_mbr_to_file(self.layout, writer)?;
+    image_file.skip_fat(self.layout)?;
+    image_io::copy_exact_n(&mut fat, writer, self.layout.length)?;
     image_file.copy_tail_to_file(writer)?;
     writer.flush()?;
     Ok(())
+  }
+
+  pub fn verify_file(&mut self, file: impl AsRef<Path>) -> Result<bool, Error> {
+    let mut reader = File::open(file)?;
+
+    self.verify_reader(&mut reader)
+  }
+
+  pub fn verify_reader<R>(&mut self, reader: &mut R) -> Result<bool, Error>
+  where
+    R: Read,
+  {
+    self.fat = None;
+
+    let mut image_file = SourceImageReader::new(self.image_path.clone())?;
+    let mut fat = File::open(self.fat_tmp_path.clone())?;
+
+    if !image_file.verify_mbr(self.layout, reader)? {
+      return Ok(false);
+    };
+    image_file.skip_fat(self.layout)?;
+    if !image_io::compare(&mut fat, &mut reader.take(self.layout.length))? {
+      return Ok(false);
+    }
+    if !image_file.verify_tail(reader)? {
+      return Ok(false);
+    }
+
+    Ok(true)
   }
 }
 
