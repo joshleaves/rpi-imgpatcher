@@ -4,7 +4,6 @@ use rpi_imgpatcher::RpiImage;
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
-use std::process::Stdio;
 
 pub enum Instruction {
   From {
@@ -51,11 +50,8 @@ impl Instruction {
     if ctx.has_image() {
       return Err(PatchError::MultipleFromInstructions);
     }
-    let Ok(rpi_image) = RpiImage::new(source_image) else {
-      return Err(PatchError::CouldNotInitializeSourceImage(
-        source_image.to_path_buf(),
-      ));
-    };
+    let rpi_image = RpiImage::new(source_image)
+      .map_err(|err| PatchError::CouldNotInitializeSourceImage(source_image.to_path_buf(), err))?;
     ctx.rpi_image = Some(rpi_image);
     Ok(())
   }
@@ -63,7 +59,6 @@ impl Instruction {
   fn execute_exec(&self, _ctx: &mut PatchContext, command: &String) -> Result<(), PatchError> {
     // println!("COMMAND RAW: {:?}", command);
     let status = Command::new("sh")
-      .stderr(Stdio::null())
       .arg("-o")
       .arg("pipefail")
       .arg("-c")
@@ -132,10 +127,12 @@ impl Instruction {
     let Ok(mut buf) = rpi_image.read_file("cmdline.txt") else {
       return Err(PatchError::CannotReadCmdlineTxt);
     };
-    while matches!(buf.last(), Some(b'\n' | b'\r')) {
+    while matches!(buf.last(), Some(b'\n' | b'\r' | b' ')) {
       buf.pop();
     }
-    buf.push(b' ');
+    if !buf.is_empty() {
+      buf.push(b' ');
+    }
     buf.extend_from_slice(append_conf.as_bytes());
     rpi_image
       .write_bytes("cmdline.txt", &buf)

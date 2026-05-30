@@ -104,26 +104,47 @@ where
 
   loop {
     let n1 = lhs.read(&mut buf1)?;
-    // LHS reaches EOF, victory
+    // LHS reaches EOF, check if RHS also reaches EOF
     if n1 == 0 {
-      return Ok(true);
+      let mut buf_extra = [0u8; 1];
+      return Ok(rhs.read(&mut buf_extra)? == 0);
     }
 
     // We try to read just as many bytes from RHS
-    match rhs.read_exact(&mut buf2[..n1]) {
-      Ok(()) => n1,
-      Err(err) => {
-        // UnexpectedEof = our output image is smaller tha the source
-        if err.kind() == std::io::ErrorKind::UnexpectedEof {
-          return Ok(false);
-        }
-        return Err(err.into());
+    let mut n2 = 0;
+    while n2 < n1 {
+      match rhs.read(&mut buf2[n2..n1]) {
+        Ok(0) => return Ok(false),
+        Ok(n) => n2 += n,
+        Err(err) if err.kind() == std::io::ErrorKind::Interrupted => continue,
+        Err(err) => return Err(err.into()),
       }
-    };
+    }
 
     // Let's compare stuff
     if buf1[..n1] != buf2[..n1] {
       return Ok(false);
     }
+  }
+}
+
+#[cfg(test)]
+mod image_io_tests {
+  use super::*;
+  use std::io::Cursor;
+
+  #[test]
+  fn test_compare_different_lengths() {
+    let mut lhs = Cursor::new(vec![1, 2, 3]);
+    let mut rhs = Cursor::new(vec![1, 2, 3, 4]);
+    assert!(!compare(&mut lhs, &mut rhs).unwrap());
+
+    let mut lhs = Cursor::new(vec![1, 2, 3, 4]);
+    let mut rhs = Cursor::new(vec![1, 2, 3]);
+    assert!(!compare(&mut lhs, &mut rhs).unwrap());
+
+    let mut lhs = Cursor::new(vec![1, 2, 3]);
+    let mut rhs = Cursor::new(vec![1, 2, 3]);
+    assert!(compare(&mut lhs, &mut rhs).unwrap());
   }
 }

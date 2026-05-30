@@ -159,6 +159,12 @@ impl RpiImage {
   }
 }
 
+impl Drop for RpiImage {
+  fn drop(&mut self) {
+    let _ = std::fs::remove_file(&self.fat_tmp_path);
+  }
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;
@@ -271,5 +277,33 @@ mod tests {
       .expect("oracle should read written file contents");
 
     assert_eq!(actual, uuid.as_bytes());
+  }
+}
+
+#[cfg(test)]
+mod bug_verification_tests {
+  use super::*;
+  use std::path::PathBuf;
+
+  #[test]
+  fn test_temp_file_deleted_on_drop() {
+    let fixture_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+      .join("tests")
+      .join("fixtures")
+      .join("test.img");
+
+    let fat_tmp_path;
+    {
+      let image = RpiImage::new(&fixture_path).expect("should open fixture image");
+      fat_tmp_path = image.fat_tmp_path.clone();
+      assert!(
+        fat_tmp_path.exists(),
+        "Temp file should exist while RpiImage is alive"
+      );
+    }
+    assert!(
+      !fat_tmp_path.exists(),
+      "Temp file should be deleted after RpiImage is dropped"
+    );
   }
 }
