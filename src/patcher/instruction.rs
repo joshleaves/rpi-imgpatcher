@@ -50,9 +50,8 @@ impl Instruction {
     if ctx.has_image() {
       return Err(PatchError::MultipleFromInstructions);
     }
-    let rpi_image = RpiImage::new(source_image).map_err(|err| {
-      PatchError::CouldNotInitializeSourceImage(source_image.to_path_buf(), err)
-    })?;
+    let rpi_image = RpiImage::new(source_image)
+      .map_err(|err| PatchError::CouldNotInitializeSourceImage(source_image.to_path_buf(), err))?;
     ctx.rpi_image = Some(rpi_image);
     Ok(())
   }

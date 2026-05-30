@@ -282,22 +282,28 @@ mod tests {
 
 #[cfg(test)]
 mod bug_verification_tests {
-    use super::*;
-    use std::path::PathBuf;
+  use super::*;
+  use std::path::PathBuf;
 
-    #[test]
-    fn test_temp_file_deleted_on_drop() {
-        let fixture_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-          .join("tests")
-          .join("fixtures")
-          .join("test.img");
+  #[test]
+  fn test_temp_file_deleted_on_drop() {
+    let fixture_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+      .join("tests")
+      .join("fixtures")
+      .join("test.img");
 
-        let fat_tmp_path;
-        {
-            let image = RpiImage::new(&fixture_path).expect("should open fixture image");
-            fat_tmp_path = image.fat_tmp_path.clone();
-            assert!(fat_tmp_path.exists(), "Temp file should exist while RpiImage is alive");
-        }
-        assert!(!fat_tmp_path.exists(), "Temp file should be deleted after RpiImage is dropped");
+    let fat_tmp_path;
+    {
+      let image = RpiImage::new(&fixture_path).expect("should open fixture image");
+      fat_tmp_path = image.fat_tmp_path.clone();
+      assert!(
+        fat_tmp_path.exists(),
+        "Temp file should exist while RpiImage is alive"
+      );
     }
+    assert!(
+      !fat_tmp_path.exists(),
+      "Temp file should be deleted after RpiImage is dropped"
+    );
+  }
 }

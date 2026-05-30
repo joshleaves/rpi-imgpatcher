@@ -130,21 +130,21 @@ where
 
 #[cfg(test)]
 mod image_io_tests {
-    use super::*;
-    use std::io::Cursor;
+  use super::*;
+  use std::io::Cursor;
 
-    #[test]
-    fn test_compare_different_lengths() {
-        let mut lhs = Cursor::new(vec![1, 2, 3]);
-        let mut rhs = Cursor::new(vec![1, 2, 3, 4]);
-        assert!(!compare(&mut lhs, &mut rhs).unwrap());
+  #[test]
+  fn test_compare_different_lengths() {
+    let mut lhs = Cursor::new(vec![1, 2, 3]);
+    let mut rhs = Cursor::new(vec![1, 2, 3, 4]);
+    assert!(!compare(&mut lhs, &mut rhs).unwrap());
 
-        let mut lhs = Cursor::new(vec![1, 2, 3, 4]);
-        let mut rhs = Cursor::new(vec![1, 2, 3]);
-        assert!(!compare(&mut lhs, &mut rhs).unwrap());
+    let mut lhs = Cursor::new(vec![1, 2, 3, 4]);
+    let mut rhs = Cursor::new(vec![1, 2, 3]);
+    assert!(!compare(&mut lhs, &mut rhs).unwrap());
 
-        let mut lhs = Cursor::new(vec![1, 2, 3]);
-        let mut rhs = Cursor::new(vec![1, 2, 3]);
-        assert!(compare(&mut lhs, &mut rhs).unwrap());
-    }
+    let mut lhs = Cursor::new(vec![1, 2, 3]);
+    let mut rhs = Cursor::new(vec![1, 2, 3]);
+    assert!(compare(&mut lhs, &mut rhs).unwrap());
+  }
 }
