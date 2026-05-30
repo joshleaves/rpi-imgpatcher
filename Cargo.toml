@@ -1,6 +1,6 @@
 [package]
 name = "rpi-imgpatcher"
-version = "0.9.8"
+version = "0.9.9"
 edition = "2024"
 
 authors = ["Arnaud 'red' Rouyer"]
@@ -31,12 +31,12 @@ buffered_copy = []
 [dependencies]
 fatfs = "0.3.6"
 fscommon = "0.1.1"
-libc = { version = "0.2.185", optional = true }
-lzma-rust2 = { version = "0.16.2", features = ["xz", "std"] }
+libc = { version = "0.2.186", optional = true }
+lzma-rust2 = { version = "0.16.3", features = ["xz", "std"] }
 mbrman = "0.6.1"
 tempfile = "3.27.0"
 
 [dev-dependencies]
 crc32fast = "1.5.0"
-uuid = { version = "1.23.1", features = ["v4"] }
+uuid = { version = "1.23.2", features = ["v4"] }
 
