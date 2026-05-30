@@ -116,7 +116,6 @@ where
       match rhs.read(&mut buf2[n2..n1]) {
         Ok(0) => return Ok(false),
         Ok(n) => n2 += n,
-        Err(err) if err.kind() == std::io::ErrorKind::Interrupted => continue,
         Err(err) => return Err(err.into()),
       }
     }

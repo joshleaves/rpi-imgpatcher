@@ -3,7 +3,7 @@ use fscommon::BufStream;
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
-use tempfile::NamedTempFile;
+use tempfile::{NamedTempFile, TempPath};
 mod layout;
 pub use layout::FatPartitionLayout;
 mod error;
@@ -22,7 +22,7 @@ pub struct RpiImage {
   layout: FatPartitionLayout,
 
   // Path to the temporary working copy of the FAT partition.
-  fat_tmp_path: PathBuf,
+  fat_tmp_path: TempPath,
 
   // Open FAT workspace backed by the extracted temporary file.
   fat: Option<FileSystem<BufStream<File>>>,
@@ -39,13 +39,14 @@ impl RpiImage {
     let mut image_file = SourceImageReader::new(image_path.clone())?;
     let layout = image_file.layout_fat()?;
 
-    let fat_tmp = NamedTempFile::new()?;
-    let (mut fat_tmp_file, fat_tmp_path) = fat_tmp.keep()?;
-    image_file.extract_fat_to_file(layout, &mut fat_tmp_file)?;
+    let mut fat_tmp = NamedTempFile::new()?;
+    image_file.extract_fat_to_file(layout, fat_tmp.as_file_mut())?;
+    fat_tmp.as_file_mut().seek(SeekFrom::Start(0))?;
 
-    fat_tmp_file.seek(SeekFrom::Start(0))?;
+    let fat_tmp_file = fat_tmp.reopen()?;
     let buf_stream = BufStream::new(fat_tmp_file);
     let fat = fatfs::FileSystem::new(buf_stream, fatfs::FsOptions::new())?;
+    let fat_tmp_path = fat_tmp.into_temp_path();
 
     Ok(Self {
       image_path,
@@ -120,7 +121,7 @@ impl RpiImage {
     self.fat = None;
 
     let mut image_file = SourceImageReader::new(self.image_path.clone())?;
-    let mut fat = File::open(self.fat_tmp_path.clone())?;
+    let mut fat = File::open(&self.fat_tmp_path)?;
     image_file.copy_mbr_to_file(self.layout, writer)?;
     image_file.skip_fat(self.layout)?;
     image_io::copy_exact_n(&mut fat, writer, self.layout.length)?;
@@ -142,7 +143,7 @@ impl RpiImage {
     self.fat = None;
 
     let mut image_file = SourceImageReader::new(self.image_path.clone())?;
-    let mut fat = File::open(self.fat_tmp_path.clone())?;
+    let mut fat = File::open(&self.fat_tmp_path)?;
 
     if !image_file.verify_mbr(self.layout, reader)? {
       return Ok(false);
@@ -156,12 +157,6 @@ impl RpiImage {
     }
 
     Ok(true)
-  }
-}
-
-impl Drop for RpiImage {
-  fn drop(&mut self) {
-    let _ = std::fs::remove_file(&self.fat_tmp_path);
   }
 }
 
@@ -295,7 +290,7 @@ mod bug_verification_tests {
     let fat_tmp_path;
     {
       let image = RpiImage::new(&fixture_path).expect("should open fixture image");
-      fat_tmp_path = image.fat_tmp_path.clone();
+      fat_tmp_path = image.fat_tmp_path.to_path_buf();
       assert!(
         fat_tmp_path.exists(),
         "Temp file should exist while RpiImage is alive"
