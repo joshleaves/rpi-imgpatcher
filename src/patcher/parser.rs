@@ -142,7 +142,7 @@ fn parse_append(args: Vec<String>) -> Result<Instruction, PatchError> {
     [kind, append_conf] if kind == "CMDLINE" => Ok(Instruction::AppendCmdline {
       append_conf: append_conf.clone(),
     }),
-    _ => Err(PatchError::InvalidArguments("ADD".to_owned(), args)),
+    _ => Err(PatchError::InvalidArguments("APPEND".to_owned(), args)),
   }
 }
 

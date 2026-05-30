@@ -29,7 +29,7 @@ pub enum PatchError {
   MissingFromInstruction,
   MissingSaveInstruction,
   MultipleFromInstructions,
-  CouldNotInitializeSourceImage(PathBuf),
+  CouldNotInitializeSourceImage(PathBuf, rpi_image::Error),
   ExecFailed(i32, String),
   CannotAddFileBeforeFromInstruction(String),
   CannotAppendFileBeforeFromInstruction(String),
@@ -64,8 +64,12 @@ impl fmt::Display for PatchError {
       PatchError::MissingSaveInstruction => {
         write!(f, "Missing SAVE instruction")
       }
-      PatchError::CouldNotInitializeSourceImage(source_image) => {
-        write!(f, "Could not initialize source image: {:?}", source_image)
+      PatchError::CouldNotInitializeSourceImage(source_image, err) => {
+        write!(
+          f,
+          "Could not initialize source image: {:?} ({:?})",
+          source_image, err
+        )
       }
       PatchError::MultipleFromInstructions => {
         write!(f, "Multiple FROM instructions")
@@ -83,7 +87,7 @@ impl fmt::Display for PatchError {
       PatchError::CannotAppendFileBeforeFromInstruction(fat_path) => {
         write!(
           f,
-          "Cannot use ADD FILE before FROM instruction: {}",
+          "Cannot use APPEND FILE before FROM instruction: {}",
           fat_path
         )
       }
