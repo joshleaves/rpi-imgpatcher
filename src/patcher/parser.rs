@@ -113,7 +113,8 @@ pub fn parse_instructions(patcherfile: &str) -> Result<Vec<Instruction>, PatchEr
       let (cmd, rest) = line.split_once(' ').unwrap_or((&line, ""));
       match cmd {
         "FROM" => parse_from(extract_arguments(rest)),
-        "EXEC" => parse_exec(rest.to_string()),
+        "SHELL" => parse_shell(rest),
+        "EXEC" => parse_exec(extract_arguments(rest)),
         "ADD" => parse_add(extract_arguments(rest)),
         "APPEND" => parse_append(extract_arguments(rest)),
         "SAVE" => parse_save(extract_arguments(rest)),
@@ -137,10 +138,23 @@ fn parse_from(args: Vec<String>) -> Result<Instruction, PatchError> {
   }
 }
 
-fn parse_exec(command: String) -> Result<Instruction, PatchError> {
+fn parse_shell(command: &str) -> Result<Instruction, PatchError> {
+  let command = command.trim();
   match command.is_empty() {
-    true => Err(PatchError::MissingArgument("EXEC".to_owned())),
-    false => Ok(Instruction::Exec { command }),
+    true => Err(PatchError::MissingArgument("SHELL".to_owned())),
+    false => Ok(Instruction::Shell {
+      command: command.to_owned(),
+    }),
+  }
+}
+
+fn parse_exec(args: Vec<String>) -> Result<Instruction, PatchError> {
+  match args.split_first() {
+    None => Err(PatchError::MissingArgument("EXEC".to_owned())),
+    Some((program, args)) => Ok(Instruction::Exec {
+      program: program.to_owned(),
+      args: args.to_vec(),
+    }),
   }
 }
 
@@ -199,9 +213,60 @@ mod tests {
     "#;
 
     let instructions = parse_instructions(patcherfile).unwrap();
-    assert!(matches!(instructions[0], Instruction::Exec { .. }));
+    assert!(matches!(
+      instructions[0],
+      Instruction::Exec {
+        program: _,
+        args: _
+      }
+    ));
     assert!(matches!(instructions[1], Instruction::From { .. }));
     assert!(matches!(instructions[2], Instruction::Save { .. }));
+  }
+
+  #[test]
+  fn parse_instructions_parses_exec_program_and_args() {
+    let patcherfile = r#"
+      EXEC cp "file a.txt" "file b.txt"
+      FROM "base.img"
+      SAVE "out.img"
+    "#;
+
+    let instructions = parse_instructions(patcherfile).unwrap();
+    assert!(matches!(
+      &instructions[0],
+      Instruction::Exec { program, args } if program == "cp" && args == &vec!["file a.txt".to_owned(), "file b.txt".to_owned()]
+    ));
+  }
+
+  #[test]
+  fn parse_instructions_allows_shell_before_from() {
+    let patcherfile = r#"
+      SHELL echo "prepare" | cat
+      FROM "base.img"
+      SAVE "out.img"
+    "#;
+
+    let instructions = parse_instructions(patcherfile).unwrap();
+    assert!(matches!(
+      &instructions[0],
+      Instruction::Shell { command } if command == "echo \"prepare\" | cat"
+    ));
+  }
+
+  #[test]
+  fn parse_instructions_trims_shell_command() {
+    let patcherfile = r#"
+      SHELL     echo "prepare"
+      FROM "base.img"
+      SAVE "out.img"
+    "#;
+
+    let instructions = parse_instructions(patcherfile).unwrap();
+    assert!(matches!(
+      &instructions[0],
+      Instruction::Shell { command } if command == "echo \"prepare\""
+    ));
   }
 
   #[test]
@@ -239,7 +304,7 @@ mod tests {
     let patcherfile = r#"
       FROM "base.img"
       SAVE "out.img"
-      EXEC echo "should fail"
+      SHELL echo "should fail"
     "#;
 
     assert!(matches!(

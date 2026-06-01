@@ -22,7 +22,8 @@ SAVE "client-a.img"
 In practice:
 
 - `FROM` opens the source image and starts a patch session.
-- `EXEC` runs a host command.
+- `SHELL` runs a host shell command.
+- `EXEC` runs a host program directly with explicit arguments.
 - `ADD FILE` copies a host file into the FAT partition.
 - `APPEND FILE` appends a host file to an existing FAT file.
 - `SAVE` writes a new output image.
@@ -45,7 +46,7 @@ Variables can be used inside arguments using the `$VAR` syntax.
 
 ```text
 FROM "base.img"
-EXEC cat firstrun.sh | sed "s|spark-noconf|$NAME|g" > firstrun-$NAME.sh
+SHELL cat firstrun.sh | sed "s|spark-noconf|$NAME|g" > firstrun-$NAME.sh
 ADD FILE "boot/firstrun-$CLIENT.sh" "./firstrun-$CLIENT.sh"
 SAVE "image-$CLIENT.img"
 ```
@@ -79,23 +80,45 @@ Rules:
 - `ADD FILE`, `APPEND FILE`, and `SAVE` require a prior `FROM`.
 - A valid `Patcherfile` must contain exactly one `SAVE`, and `SAVE` must be the last instruction.
 
-## `EXEC`
+## `SHELL`
 
-Runs a command on the host system.
+Runs a shell command on the host system.
 
 ```text
-EXEC cp firstrun.template.sh firstrun-client-a.sh
-EXEC sh -c "cat firstrun.sh | sed 's|spark-noconf|client-a|g' > firstrun-client-a.sh"
+SHELL cp firstrun.template.sh firstrun-client-a.sh
+SHELL cat firstrun.sh | sed "s|spark-noconf|client-a|g" > firstrun-client-a.sh
 ```
 
 Arguments:
 
-- the command and its arguments
+- `command`: shell command string
+
+Notes:
+
+- `SHELL` runs on the host, not inside the image.
+- It executes through `/bin/sh -o pipefail -c`.
+- Use it when you need shell features (pipes, redirects, substitutions, chaining).
+- If the command exits with a non-zero status, execution stops.
+
+## `EXEC`
+
+Runs a host program directly (no shell parsing).
+
+```text
+EXEC cp firstrun.template.sh firstrun-client-a.sh
+EXEC chmod +x firstrun-client-a.sh
+```
+
+Arguments:
+
+- first token: program path/name
+- following tokens: arguments passed as-is
 
 Notes:
 
 - `EXEC` runs on the host, not inside the image.
-- Use it to prepare files before adding them to the image.
+- No shell expansion is performed (`|`, `>`, `&&`, `$(...)` are not interpreted).
+- Use `SHELL` if you need shell features.
 - If the command exits with a non-zero status, execution stops.
 
 ## `ADD FILE`
@@ -189,7 +212,7 @@ Behavior:
 
 ```text
 FROM "tests/fixtures/test.img"
-EXEC sh -c "printf '%s\n' 'first boot script' > ./firstrun-client-a.sh"
+SHELL printf '%s\n' 'first boot script' > ./firstrun-client-a.sh
 ADD FILE "boot/firstrun.sh" "./firstrun-client-a.sh"
 APPEND FILE "boot/cmdline.txt" "./cmdline-extra.txt"
 SAVE "./client-a.img"
@@ -223,6 +246,6 @@ Because the patch session never ends with `SAVE`.
 
 `Patcherfile` is intentionally small.
 
-If you need dynamic file generation, do it with `EXEC`, then use `ADD FILE` or `APPEND FILE`.
+If you need host-side preparation, use `EXEC` for direct argv-style commands and `SHELL` for shell composition (pipes/redirections), then use `ADD FILE` or `APPEND FILE`.
 
 The goal is to keep image patching predictable, readable, and easy to audit.

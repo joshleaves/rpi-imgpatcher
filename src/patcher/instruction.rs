@@ -9,6 +9,13 @@ pub enum Instruction {
   From {
     source_image: PathBuf,
   },
+  Shell {
+    command: String,
+  },
+  Exec {
+    program: String,
+    args: Vec<String>,
+  },
   AddFile {
     fat_path: String,
     host_file: PathBuf,
@@ -23,16 +30,26 @@ pub enum Instruction {
   Save {
     output_image: PathBuf,
   },
-  Exec {
-    command: String,
-  },
 }
 
 impl Instruction {
   pub fn execute(&self, ctx: &mut PatchContext) -> Result<(), PatchError> {
+    self.execute_with_progress(ctx, None)
+  }
+
+  /// Executes an instruction with an optional progress callback.
+  ///
+  /// The callback receives `(written, total)` and is currently emitted by
+  /// `SAVE` instructions.
+  pub fn execute_with_progress(
+    &self,
+    ctx: &mut PatchContext,
+    on_progress: Option<&mut dyn FnMut(u64, u64)>,
+  ) -> Result<(), PatchError> {
     match self {
       Instruction::From { source_image } => self.execute_from(ctx, source_image),
-      Instruction::Exec { command } => self.execute_exec(ctx, command),
+      Instruction::Shell { command } => self.execute_shell(ctx, command),
+      Instruction::Exec { program, args } => self.execute_exec(ctx, program, args),
       Instruction::AddFile {
         fat_path,
         host_file,
@@ -42,7 +59,7 @@ impl Instruction {
         host_file,
       } => self.execute_append_file(ctx, fat_path, host_file),
       Instruction::AppendCmdline { append_conf } => self.execute_append_cmdline(ctx, append_conf),
-      Instruction::Save { output_image } => self.execute_save(ctx, output_image),
+      Instruction::Save { output_image } => self.execute_save(ctx, output_image, on_progress),
     }
   }
 
@@ -56,18 +73,42 @@ impl Instruction {
     Ok(())
   }
 
-  fn execute_exec(&self, _ctx: &mut PatchContext, command: &String) -> Result<(), PatchError> {
-    let status = Command::new("sh")
+  fn execute_shell(&self, _ctx: &mut PatchContext, command: &String) -> Result<(), PatchError> {
+    let status = Command::new("/bin/sh")
       .arg("-o")
       .arg("pipefail")
       .arg("-c")
       .arg(command)
       .status()
-      .map_err(|_| PatchError::ExecFailed(-1, command.to_owned()))?;
+      .map_err(|_| PatchError::ShellFailed(-1, command.to_owned()))?;
 
     if !status.success() {
       let code = status.code().unwrap_or(-1);
-      return Err(PatchError::ExecFailed(code, command.to_owned()));
+      return Err(PatchError::ShellFailed(code, command.to_owned()));
+    }
+
+    Ok(())
+  }
+
+  fn execute_exec(
+    &self,
+    _ctx: &mut PatchContext,
+    program: &String,
+    args: &[String],
+  ) -> Result<(), PatchError> {
+    let command_display = std::iter::once(program.as_str())
+      .chain(args.iter().map(String::as_str))
+      .collect::<Vec<_>>()
+      .join(" ");
+
+    let status = Command::new(program)
+      .args(args)
+      .status()
+      .map_err(|_| PatchError::ExecFailed(-1, command_display.clone()))?;
+
+    if !status.success() {
+      let code = status.code().unwrap_or(-1);
+      return Err(PatchError::ExecFailed(code, command_display));
     }
 
     Ok(())

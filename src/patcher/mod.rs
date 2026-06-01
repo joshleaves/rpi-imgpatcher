@@ -34,6 +34,7 @@ pub enum PatchError {
   MultipleSaveInstructions,
   SaveMustBeLastInstruction,
   CouldNotInitializeSourceImage(PathBuf, rpi_image::Error),
+  ShellFailed(i32, String),
   ExecFailed(i32, String),
   CannotAddFileBeforeFromInstruction(String),
   CannotAppendFileBeforeFromInstruction(String),
@@ -87,8 +88,11 @@ impl fmt::Display for PatchError {
       PatchError::SaveMustBeLastInstruction => {
         write!(f, "SAVE instruction must be the last instruction")
       }
+      PatchError::ShellFailed(status, command) => {
+        write!(f, "Shell command failed ({}): `{}`", status, command)
+      }
       PatchError::ExecFailed(status, command) => {
-        write!(f, "Command failed ({}): `{}`", status, command)
+        write!(f, "EXEC command failed ({}): `{}`", status, command)
       }
       PatchError::CannotAddFileBeforeFromInstruction(fat_path) => {
         write!(
