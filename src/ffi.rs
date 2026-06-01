@@ -92,6 +92,12 @@ fn c_char_to_pathbuf(path: *const c_char) -> Option<PathBuf> {
   Some(PathBuf::from(os_str))
 }
 
+/// Opens a new Raspberry Pi image for patching.
+///
+/// `image_path` must be a null-terminated string containing the path to the
+/// source image (`.img` or `.img.xz`).
+/// Returns a pointer to an `RpiImage` object on success, or NULL on failure.
+/// The returned pointer must be freed using `rpi_image_free`.
 #[unsafe(no_mangle)]
 pub extern "C" fn rpi_image_new(image_path: *const c_char) -> *mut RpiImage {
   let Some(image_path) = c_char_to_pathbuf(image_path) else {
@@ -120,6 +126,13 @@ pub extern "C" fn rpi_image_new(image_path: *const c_char) -> *mut RpiImage {
 // }
 
 // pub fn write_file(&mut self, fat_path: &str, file: impl AsRef<Path>) -> Result<u64, Error> {
+/// Copies a file from the host filesystem into the image's FAT partition.
+///
+/// `fat_path` is the destination path inside the image.
+/// `file` is the source path on the host filesystem.
+/// `out_error` is an optional pointer to a `u32` that will receive the error
+/// code on failure.
+/// Returns the number of bytes written on success, or `-1` on failure.
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
 #[unsafe(no_mangle)]
 pub extern "C" fn rpi_image_write_file(
@@ -148,6 +161,9 @@ pub extern "C" fn rpi_image_write_file(
 }
 
 // pub fn write_bytes(&mut self, fat_path: &str, bytes: &[u8]) -> Result<u64, Error>
+/// Writes a null-terminated string into a file in the image's FAT partition.
+///
+/// Returns the number of bytes written on success, or `-1` on failure.
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
 #[unsafe(no_mangle)]
 pub extern "C" fn rpi_image_write_string(
@@ -175,6 +191,9 @@ pub extern "C" fn rpi_image_write_string(
   }
 }
 
+/// Writes a buffer of bytes into a file in the image's FAT partition.
+///
+/// Returns the number of bytes written on success, or `-1` on failure.
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
 #[unsafe(no_mangle)]
 pub extern "C" fn rpi_image_write_bytes(
@@ -203,6 +222,9 @@ pub extern "C" fn rpi_image_write_bytes(
 }
 
 //pub fn append_bytes(&mut self, fat_path: &str, bytes: &[u8]) -> Result<u64, Error>
+/// Appends a null-terminated string to a file in the image's FAT partition.
+///
+/// Returns the number of bytes written on success, or `-1` on failure.
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
 #[unsafe(no_mangle)]
 pub extern "C" fn rpi_image_append_string(
@@ -226,6 +248,9 @@ pub extern "C" fn rpi_image_append_string(
   }
 }
 
+/// Appends a buffer of bytes to a file in the image's FAT partition.
+///
+/// Returns the number of bytes written on success, or `-1` on failure.
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
 #[unsafe(no_mangle)]
 pub extern "C" fn rpi_image_append_bytes(
@@ -252,6 +277,9 @@ pub extern "C" fn rpi_image_append_bytes(
 }
 
 // pub fn save_to_file(self, file: impl AsRef<Path>) -> Result<(), Error>
+/// Saves the patched image to a new file.
+///
+/// Returns `0` on success, or a non-zero error code on failure.
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
 #[unsafe(no_mangle)]
 pub extern "C" fn rpi_image_save_to_file(rpi_image: *mut RpiImage, file: *const c_char) -> i64 {
@@ -269,6 +297,9 @@ pub extern "C" fn rpi_image_save_to_file(rpi_image: *mut RpiImage, file: *const 
 }
 
 // pub fn save_to_file(self, file: impl AsRef<Path>) -> Result<(), Error>
+/// Saves the patched image to a new file with a progress callback.
+///
+/// Returns `0` on success, or a non-zero error code on failure.
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
 #[unsafe(no_mangle)]
 pub extern "C" fn rpi_image_save_to_file_with_progress(
@@ -307,6 +338,9 @@ pub extern "C" fn rpi_image_save_to_file_with_progress(
 }
 
 // pub(crate) fn save_to_fd(self, fd: RawFd) -> Result<(), Error>
+/// Saves the patched image to a file descriptor.
+///
+/// Returns `0` on success, or a non-zero error code on failure.
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
 #[unsafe(no_mangle)]
 pub extern "C" fn rpi_image_save_to_fd(rpi_image: *mut RpiImage, fd: i32) -> i64 {
@@ -326,6 +360,9 @@ pub extern "C" fn rpi_image_save_to_fd(rpi_image: *mut RpiImage, fd: i32) -> i64
 }
 
 // pub(crate) fn save_to_fd_with_progress<F>(self, fd: RawFd, progress: FnMut(u64)) -> Result<(), Error>
+/// Saves the patched image to a file descriptor with a progress callback.
+///
+/// Returns `0` on success, or a non-zero error code on failure.
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
 #[unsafe(no_mangle)]
 pub extern "C" fn rpi_image_save_to_fd_with_progress(
@@ -354,6 +391,9 @@ pub extern "C" fn rpi_image_save_to_fd_with_progress(
   }
 }
 
+/// Verifies that an image file matches the current patched state.
+///
+/// Returns `0` on success, or a non-zero error code on failure.
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
 #[unsafe(no_mangle)]
 pub extern "C" fn rpi_image_verify_file(rpi_image: *mut RpiImage, file: *const c_char) -> i64 {
@@ -458,6 +498,7 @@ pub extern "C" fn rpi_image_verify_fd_with_progress(
   }
 }
 
+/// Frees an `RpiImage` object.
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
 #[unsafe(no_mangle)]
 pub extern "C" fn rpi_image_free(rpi_image: *mut RpiImage) {
