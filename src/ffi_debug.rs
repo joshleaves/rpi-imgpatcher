@@ -1,8 +1,8 @@
+#[cfg(feature = "ffi")]
+use libc;
 use std::cell::RefCell;
 use std::ffi::CString;
 use std::ffi::c_char;
-#[cfg(feature = "ffi")]
-use libc;
 
 thread_local! {
   static LAST_ERROR_MESSAGE: RefCell<Option<CString>> = const { RefCell::new(None) };
