@@ -19,6 +19,32 @@ This tool focuses on a much simpler workflow:
 
 It operates directly on the boot partition (FAT), enabling you to inject files and configuration that will be applied on first boot.
 
+## Patch Images with a Patcherfile
+
+The main interface of `rpi-imgpatcher` is the `Patcherfile`: a small declarative recipe executed top-to-bottom.
+
+```text
+FROM "base.img"
+EXEC cp firstrun.template.sh firstrun-client-a.sh
+SHELL sed "s|spark-noconf|client-a|g" firstrun-client-a.sh > firstrun-client-a-ready.sh
+ADD FILE "boot/firstrun.sh" "firstrun-client-a-ready.sh"
+APPEND CMDLINE "systemd.run=/boot/firstrun.sh systemd.run_success_action=reboot systemd.unit=kernel-command-line.target"
+SAVE "client-a.img"
+```
+
+Rules:
+- exactly one `FROM`
+- `FROM` must appear before any image instruction (`ADD`, `APPEND`, `SAVE`)
+- exactly one `SAVE`
+- `SAVE` must be the last instruction
+- use `EXEC` for direct ARGV-style host commands
+- use `SHELL` when you need pipes/redirections/substitutions
+
+Full format reference: [Patcherfile specification](./PATCHERFILE.md).
+
+The project also exposes a C FFI for integrations outside Rust.  
+Build it with `--features ffi`, then use `target/release/librpi_imgpatcher.a` with the API documented in `include/rpi_imgpatcher.h`.
+
 ---
 
 ## Why?
@@ -36,7 +62,8 @@ Typical approaches involve:
 - no manual mounting
 - reproducible image customization
 
---
+---
+
 ## Build features
 - `ffi`: Even if it was my first motivation, the base library doesn't requires it. Therefore, it becomes a feature.
 - `ffi_debug`: Exposes a `char * rpi_imgpatcher_last_error_message()` function that returns a heap-allocated string containing the last error message encountered by the FFI (thread-local). The returned buffer must be freed manually using `void rpi_imgpatcher_last_error_free(char *error)`.
@@ -75,6 +102,11 @@ Executed in   58.12 secs    fish           external
 
 For most workflows, .xz is best used as an input format or as a storage/archive format.
 
+> [!WARNING]
+> Save progress currently tracks the patched FAT partition, not the full output image write.
+> On large images (especially when the source is `.img.xz`), progress can reach `100%` while data is still being written.
+> Wait for the final success message (or process exit) before using the output image.
+
 --
 
 ## Non-goals
@@ -93,32 +125,6 @@ Instead, the focus is on:
 - [mbrman](rust-disk-partition-management/mbrman)
 - [rust-fatfs](https://github.com/rafalh/rust-fatfs)
 - [lzma-rust2](https://github.com/hasenbanck/lzma-rust2)
-
----
-
-## Current Status
-
-🚧 Early development
-
-This project is being built incrementally using:
-- GitHub issues for each step
-- small, testable milestones
-- a core-first approach (Rust)
-
-The API and CLI are not stable yet.
-
----
-
-## Roadmap (high level)
-
-- [x] Core image parsing
-- [x] FAT extraction and modification
-- [x] File injection
-- [x] CLI tool
-- [x] Validation and safety checks
-- [x] Declarative patch format ([Patcherfile](./PATCHERFILE.md))
-- [x] FFI bindings
-- [x] Support for .xz archives
 
 ---
 

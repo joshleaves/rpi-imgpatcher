@@ -122,8 +122,11 @@ mod tests {
       .expect("should seek to FAT start");
 
     let mut fat_tmp = NamedTempFile::new().expect("should create temp FAT workspace");
-    std::io::copy(&mut (&mut image_file).take(layout.length), fat_tmp.as_file_mut())
-      .expect("should copy FAT partition to temp workspace");
+    std::io::copy(
+      &mut (&mut image_file).take(layout.length),
+      fat_tmp.as_file_mut(),
+    )
+    .expect("should copy FAT partition to temp workspace");
     fat_tmp
       .as_file_mut()
       .flush()

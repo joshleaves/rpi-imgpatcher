@@ -40,11 +40,11 @@ fn main() {
   let mut patch_ctx = PatchContext::new();
   let last_percent = Cell::new(0_u64);
   let mut progress = |written: u64, total: u64| {
-    let percent = if total == 0 {
-      100
-    } else {
-      (written * 100 / total).min(100)
-    };
+    let percent = written
+      .saturating_mul(100)
+      .checked_div(total)
+      .unwrap_or(100)
+      .min(100);
     if percent > last_percent.get() {
       print!("\rSaving: {}%", percent);
       let _ = std::io::stdout().flush();
