@@ -9,7 +9,7 @@ pub use instruction::Instruction;
 pub mod parser;
 
 pub struct PatchContext {
-  pub rpi_image: Option<RpiImage>,
+  rpi_image: Option<RpiImage>,
 }
 
 impl PatchContext {
