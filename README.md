@@ -107,7 +107,7 @@ For most workflows, .xz is best used as an input format or as a storage/archive 
 > On large images (especially when the source is `.img.xz`), progress can reach `100%` while data is still being written.
 > Wait for the final success message (or process exit) before using the output image.
 
---
+---
 
 ## Non-goals
 
