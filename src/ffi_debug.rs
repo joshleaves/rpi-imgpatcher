@@ -16,24 +16,24 @@ pub fn set_last_error_message(message: impl Into<String>) {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn rpi_imgpatcher_last_error_message() -> *const c_char {
+pub extern "C" fn rpi_imgpatcher_last_error_message() -> *mut c_char {
   LAST_ERROR_MESSAGE.with(|slot| {
     slot
       .borrow()
       .as_ref()
-      .map(|msg| msg.as_ptr())
-      .unwrap_or(std::ptr::null())
+      .map(|msg| msg.to_owned().into_raw())
+      .unwrap_or(std::ptr::null_mut())
   })
 }
 
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
 #[unsafe(no_mangle)]
-pub extern "C" fn rpi_image_last_error_free(error: *mut c_char) {
+pub extern "C" fn rpi_imgpatcher_last_error_free(error: *mut c_char) {
   if error.is_null() {
     return;
   }
 
   unsafe {
-    std::mem::drop(Box::from_raw(error));
+    std::mem::drop(CString::from_raw(error));
   }
 }
