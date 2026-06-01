@@ -31,20 +31,27 @@ fn extract_arguments(input: &str) -> Vec<String> {
 }
 
 fn validate_instructions(instructions: &[Instruction]) -> Result<(), PatchError> {
-  let has_from = instructions
-    .iter()
-    .any(|i| matches!(i, Instruction::From { .. }));
+  if instructions.is_empty() {
+    return Ok(());
+  }
 
-  if !has_from {
+  let first = &instructions[0];
+  if !matches!(first, Instruction::From { .. }) {
     return Err(PatchError::MissingFromInstruction);
   }
 
-  let has_save = instructions
-    .iter()
-    .any(|i| matches!(i, Instruction::Save { .. }));
-
-  if !has_save {
+  let last = &instructions[instructions.len() - 1];
+  if !matches!(last, Instruction::Save { .. }) {
     return Err(PatchError::MissingSaveInstruction);
+  }
+
+  let from_count = instructions
+    .iter()
+    .filter(|i| matches!(i, Instruction::From { .. }))
+    .count();
+
+  if from_count > 1 {
+    return Err(PatchError::MultipleFromInstructions);
   }
 
   Ok(())

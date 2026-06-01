@@ -12,6 +12,8 @@ mod fat_file;
 mod image_io;
 mod source_image;
 use source_image::SourceImageReader;
+pub mod progress_reader;
+pub mod progress_writer;
 
 pub struct RpiImage {
   // Path to the original disk image.
@@ -19,7 +21,7 @@ pub struct RpiImage {
   image_path: PathBuf,
 
   // Byte range of the boot FAT partition inside the source image.
-  layout: FatPartitionLayout,
+  pub layout: FatPartitionLayout,
 
   // Path to the temporary working copy of the FAT partition.
   fat_tmp_path: TempPath,

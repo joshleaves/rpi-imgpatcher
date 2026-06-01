@@ -1,4 +1,6 @@
+use rpi_imgpatcher::rpi_image::progress_writer::ProgressWriter;
 use std::fs;
+use std::io::Write;
 use std::path::Path;
 mod patcher;
 
@@ -37,9 +39,46 @@ fn main() {
 
   let mut patch_ctx = PatchContext::new();
   for instr in instructions {
-    match instr.execute(&mut patch_ctx) {
-      Ok(_) => (),
-      Err(err) => error_exit!("{}", err),
+    match instr {
+      Instruction::Save { output_image } => {
+        let rpi_image = patch_ctx
+          .rpi_image
+          .as_mut()
+          .expect("SAVE instruction without image");
+        let total_size = rpi_image.layout.length;
+
+        let mut last_percent = 0;
+        let progress = move |written: u64| {
+          let percent = (written * 100 / total_size).min(100);
+          if percent > last_percent {
+            print!("\rSaving: {}%", percent);
+            std::io::stdout().flush().unwrap();
+            last_percent = percent;
+          }
+        };
+
+        let file = fs::OpenOptions::new()
+          .create(true)
+          .truncate(true)
+          .write(true)
+          .open(&output_image);
+
+        let file = match file {
+          Ok(f) => f,
+          Err(err) => error_exit!("Could not open output image {:?} ({})", output_image, err),
+        };
+
+        let mut writer = ProgressWriter::new(file, progress);
+        if let Err(err) = rpi_image.save_to_writer(&mut writer) {
+          error_exit!("Could not save image: {:?} ({})", output_image, err);
+        }
+        println!("\rSaved to {:?}", output_image);
+      }
+      _ => {
+        if let Err(err) = instr.execute(&mut patch_ctx) {
+          error_exit!("{}", err);
+        }
+      }
     }
   }
 
