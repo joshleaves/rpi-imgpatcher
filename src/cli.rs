@@ -1,4 +1,6 @@
+use std::cell::Cell;
 use std::fs;
+use std::io::Write;
 use std::path::Path;
 mod patcher;
 
@@ -36,10 +38,33 @@ fn main() {
   };
 
   let mut patch_ctx = PatchContext::new();
+  let last_percent = Cell::new(0_u64);
+  let mut progress = |written: u64, total: u64| {
+    let percent = if total == 0 {
+      100
+    } else {
+      (written * 100 / total).min(100)
+    };
+    if percent > last_percent.get() {
+      print!("\rSaving: {}%", percent);
+      let _ = std::io::stdout().flush();
+      last_percent.set(percent);
+    }
+  };
+
   for instr in instructions {
-    match instr.execute(&mut patch_ctx) {
-      Ok(_) => (),
-      Err(err) => error_exit!("{}", err),
+    let result = match &instr {
+      Instruction::Save { .. } => instr.execute_with_progress(&mut patch_ctx, Some(&mut progress)),
+      _ => instr.execute(&mut patch_ctx),
+    };
+
+    if let Err(err) = result {
+      error_exit!("{}", err);
+    }
+
+    if let Instruction::Save { output_image } = &instr {
+      println!("\rSaved to {:?}", output_image);
+      last_percent.set(0);
     }
   }
 

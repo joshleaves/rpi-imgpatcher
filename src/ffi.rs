@@ -1,12 +1,10 @@
 use crate::RpiImage;
 #[cfg(feature = "ffi_debug")]
 use crate::ffi_debug::set_last_error_message;
-mod progress_reader;
-mod progress_writer;
 use crate::rpi_image::Error;
+use crate::rpi_image::progress_reader::ProgressReader;
+use crate::rpi_image::progress_writer::ProgressWriter;
 use libc;
-use progress_reader::ProgressReader;
-use progress_writer::ProgressWriter;
 use std::ffi::c_void;
 use std::ffi::{CStr, OsStr, c_char};
 use std::fs::{File, OpenOptions};

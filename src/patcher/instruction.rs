@@ -1,7 +1,9 @@
 use crate::patcher::PatchContext;
 use crate::patcher::PatchError;
 use rpi_imgpatcher::RpiImage;
+use rpi_imgpatcher::rpi_image::progress_writer::ProgressWriter;
 use std::fs;
+use std::fs::OpenOptions;
 use std::path::PathBuf;
 use std::process::Command;
 
@@ -179,15 +181,39 @@ impl Instruction {
     Ok(())
   }
 
-  fn execute_save(&self, ctx: &mut PatchContext, output_image: &PathBuf) -> Result<(), PatchError> {
+  fn execute_save(
+    &self,
+    ctx: &mut PatchContext,
+    output_image: &PathBuf,
+    on_progress: Option<&mut dyn FnMut(u64, u64)>,
+  ) -> Result<(), PatchError> {
     let Some(rpi_image) = &mut ctx.rpi_image else {
       return Err(PatchError::CannotSaveBeforeFromInstruction(
         output_image.clone(),
       ));
     };
-    rpi_image
-      .save_to_file(output_image)
-      .map_err(|err| PatchError::CouldNotSaveImage(output_image.clone(), err))?;
+
+    match on_progress {
+      Some(progress) => {
+        let total_size = rpi_image.fat_length();
+        let file = OpenOptions::new()
+          .create(true)
+          .truncate(true)
+          .write(true)
+          .open(output_image)
+          .map_err(|err| PatchError::CouldNotSaveImage(output_image.clone(), err.into()))?;
+
+        let mut writer = ProgressWriter::new(file, |written| progress(written, total_size));
+        rpi_image
+          .save_to_writer(&mut writer)
+          .map_err(|err| PatchError::CouldNotSaveImage(output_image.clone(), err))?;
+      }
+      None => {
+        rpi_image
+          .save_to_file(output_image)
+          .map_err(|err| PatchError::CouldNotSaveImage(output_image.clone(), err))?;
+      }
+    }
 
     Ok(())
   }

@@ -12,6 +12,8 @@ mod fat_file;
 mod image_io;
 mod source_image;
 use source_image::SourceImageReader;
+pub mod progress_reader;
+pub mod progress_writer;
 
 pub struct RpiImage {
   // Path to the original disk image.
@@ -96,6 +98,10 @@ impl RpiImage {
       return Err(Error::AccessFatAfterSave);
     };
     fat_file::append_bytes(fat, fat_path, bytes)
+  }
+
+  pub fn fat_length(&self) -> u64 {
+    self.layout.length
   }
 
   /// Rebuild the full disk image into a new output file.
