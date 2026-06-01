@@ -51,9 +51,20 @@ fn validate_instructions(instructions: &[Instruction]) -> Result<(), PatchError>
     return Err(PatchError::MultipleFromInstructions);
   }
 
+  let save_count = instructions
+    .iter()
+    .filter(|i| matches!(i, Instruction::Save { .. }))
+    .count();
+  if save_count == 0 {
+    return Err(PatchError::MissingSaveInstruction);
+  }
+  if save_count > 1 {
+    return Err(PatchError::MultipleSaveInstructions);
+  }
+
   let last = &instructions[instructions.len() - 1];
   if !matches!(last, Instruction::Save { .. }) {
-    return Err(PatchError::MissingSaveInstruction);
+    return Err(PatchError::SaveMustBeLastInstruction);
   }
 
   Ok(())
@@ -207,5 +218,33 @@ mod tests {
     assert_eq!(instructions.len(), 2);
     assert!(matches!(instructions[0], Instruction::From { .. }));
     assert!(matches!(instructions[1], Instruction::Save { .. }));
+  }
+
+  #[test]
+  fn parse_instructions_rejects_multiple_save_instructions() {
+    let patcherfile = r#"
+      FROM "base.img"
+      SAVE "out-a.img"
+      SAVE "out-b.img"
+    "#;
+
+    assert!(matches!(
+      parse_instructions(patcherfile),
+      Err(PatchError::MultipleSaveInstructions)
+    ));
+  }
+
+  #[test]
+  fn parse_instructions_rejects_save_not_last() {
+    let patcherfile = r#"
+      FROM "base.img"
+      SAVE "out.img"
+      EXEC echo "should fail"
+    "#;
+
+    assert!(matches!(
+      parse_instructions(patcherfile),
+      Err(PatchError::SaveMustBeLastInstruction)
+    ));
   }
 }

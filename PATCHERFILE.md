@@ -77,6 +77,7 @@ Rules:
 
 - A valid `Patcherfile` must contain exactly one `FROM` before any operation that touches the image.
 - `ADD FILE`, `APPEND FILE`, and `SAVE` require a prior `FROM`.
+- A valid `Patcherfile` must contain exactly one `SAVE`, and `SAVE` must be the last instruction.
 
 ## `EXEC`
 

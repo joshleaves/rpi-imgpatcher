@@ -57,7 +57,6 @@ impl Instruction {
   }
 
   fn execute_exec(&self, _ctx: &mut PatchContext, command: &String) -> Result<(), PatchError> {
-    // println!("COMMAND RAW: {:?}", command);
     let status = Command::new("sh")
       .arg("-o")
       .arg("pipefail")
@@ -66,12 +65,10 @@ impl Instruction {
       .status()
       .map_err(|_| PatchError::ExecFailed(-1, command.to_owned()))?;
 
-    // println!("STATUS: {:?}", status);
     if !status.success() {
       let code = status.code().unwrap_or(-1);
       return Err(PatchError::ExecFailed(code, command.to_owned()));
     }
-    // println!("STATUS: {:?} : {:?}", status.success(), status.code());
 
     Ok(())
   }
