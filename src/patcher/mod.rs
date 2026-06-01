@@ -22,6 +22,7 @@ impl PatchContext {
   }
 }
 
+#[derive(Debug)]
 pub enum PatchError {
   UnknownInstruction(String),
   MissingArgument(String),

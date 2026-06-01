@@ -86,10 +86,11 @@ fn interpolate_env(input: &str) -> String {
 pub fn parse_instructions(patcherfile: &str) -> Result<Vec<Instruction>, PatchError> {
   let instructions: Vec<Instruction> = patcherfile
     .lines()
-    .filter(|line| !line.is_empty())
+    .map(|line| line.trim())
+    .filter(|line| !line.is_empty() && !line.starts_with('#'))
     .map(interpolate_env)
     .map(|line| {
-      let (cmd, rest) = line.trim().split_once(' ').unwrap_or((&line, ""));
+      let (cmd, rest) = line.split_once(' ').unwrap_or((&line, ""));
       match cmd {
         "FROM" => parse_from(extract_arguments(rest)),
         "EXEC" => parse_exec(rest.to_string()),

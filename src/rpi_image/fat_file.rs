@@ -17,12 +17,19 @@ fn split_path(path: &str) -> (&str, Option<&str>) {
 
 fn create_dir_r(fat: &FileSystem<BufStream<File>>, fat_path: &str) -> Result<(), Error> {
   let mut current = fat.root_dir();
-  let mut remaining = fat_path.trim_matches('/');
+  let remaining_path = fat_path.trim_matches('/');
+  if remaining_path.is_empty() {
+    return Ok(());
+  }
+  let mut remaining = remaining_path;
 
   while !remaining.is_empty() {
     let (name, rest) = split_path(remaining);
 
-    current = current.create_dir(name)?;
+    current = match current.open_dir(name) {
+      Ok(dir) => dir,
+      Err(_) => current.create_dir(name)?,
+    };
     match rest {
       Some(r) => remaining = r,
       None => break,

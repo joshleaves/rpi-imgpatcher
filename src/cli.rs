@@ -16,12 +16,19 @@ macro_rules! error_exit {
 }
 
 fn main() {
-  if !Path::new("./Patcherfile").exists() {
-    error_exit!("Missing Patcherfile");
+  let args: Vec<String> = std::env::args().collect();
+  let patcherfile_path = if args.len() > 1 {
+    &args[1]
+  } else {
+    "./Patcherfile"
+  };
+
+  if !Path::new(patcherfile_path).exists() {
+    error_exit!("Missing Patcherfile at {}", patcherfile_path);
   }
-  let patcherfile = match fs::read_to_string("./Patcherfile") {
+  let patcherfile = match fs::read_to_string(patcherfile_path) {
     Ok(f) => f,
-    Err(err) => error_exit!("Could not Patcherfile ({})", err),
+    Err(err) => error_exit!("Could not read Patcherfile {} ({})", patcherfile_path, err),
   };
   let instructions: Vec<Instruction> = match parse_instructions(&patcherfile) {
     Err(err) => error_exit!("{}", err),
