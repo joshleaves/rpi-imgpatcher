@@ -22,7 +22,9 @@ impl PatchContext {
   }
 }
 
+#[derive(Debug)]
 pub enum PatchError {
+  EmptyPatcherfile,
   UnknownInstruction(String),
   MissingArgument(String),
   InvalidArguments(String, Vec<String>),
@@ -45,6 +47,9 @@ pub enum PatchError {
 impl fmt::Display for PatchError {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
+      PatchError::EmptyPatcherfile => {
+        write!(f, "Patcherfile is empty")
+      }
       PatchError::UnknownInstruction(instruction) => {
         write!(f, "Unknown instruction: {}", instruction)
       }

@@ -31,19 +31,28 @@ fn extract_arguments(input: &str) -> Vec<String> {
 }
 
 fn validate_instructions(instructions: &[Instruction]) -> Result<(), PatchError> {
+  if instructions.is_empty() {
+    return Err(PatchError::EmptyPatcherfile);
+  }
+
   let has_from = instructions
     .iter()
     .any(|i| matches!(i, Instruction::From { .. }));
-
   if !has_from {
     return Err(PatchError::MissingFromInstruction);
   }
 
-  let has_save = instructions
+  let from_count = instructions
     .iter()
-    .any(|i| matches!(i, Instruction::Save { .. }));
+    .filter(|i| matches!(i, Instruction::From { .. }))
+    .count();
 
-  if !has_save {
+  if from_count > 1 {
+    return Err(PatchError::MultipleFromInstructions);
+  }
+
+  let last = &instructions[instructions.len() - 1];
+  if !matches!(last, Instruction::Save { .. }) {
     return Err(PatchError::MissingSaveInstruction);
   }
 
@@ -86,10 +95,11 @@ fn interpolate_env(input: &str) -> String {
 pub fn parse_instructions(patcherfile: &str) -> Result<Vec<Instruction>, PatchError> {
   let instructions: Vec<Instruction> = patcherfile
     .lines()
-    .filter(|line| !line.is_empty())
+    .map(|line| line.trim())
+    .filter(|line| !line.is_empty() && !line.starts_with('#'))
     .map(interpolate_env)
     .map(|line| {
-      let (cmd, rest) = line.trim().split_once(' ').unwrap_or((&line, ""));
+      let (cmd, rest) = line.split_once(' ').unwrap_or((&line, ""));
       match cmd {
         "FROM" => parse_from(extract_arguments(rest)),
         "EXEC" => parse_exec(rest.to_string()),
@@ -152,5 +162,50 @@ fn parse_save(args: Vec<String>) -> Result<Instruction, PatchError> {
     _ => Ok(Instruction::Save {
       output_image: PathBuf::from(&args[0]),
     }),
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::parse_instructions;
+  use crate::patcher::Instruction;
+  use crate::patcher::PatchError;
+
+  #[test]
+  fn parse_instructions_rejects_empty_patcherfile() {
+    assert!(matches!(
+      parse_instructions(""),
+      Err(PatchError::EmptyPatcherfile)
+    ));
+  }
+
+  #[test]
+  fn parse_instructions_allows_exec_before_from() {
+    let patcherfile = r#"
+      EXEC echo "prepare"
+      FROM "base.img"
+      SAVE "out.img"
+    "#;
+
+    let instructions = parse_instructions(patcherfile).unwrap();
+    assert!(matches!(instructions[0], Instruction::Exec { .. }));
+    assert!(matches!(instructions[1], Instruction::From { .. }));
+    assert!(matches!(instructions[2], Instruction::Save { .. }));
+  }
+
+  #[test]
+  fn parse_instructions_ignores_comments_and_blank_lines() {
+    let patcherfile = r#"
+      # comment 1
+
+      FROM "base.img"
+      # comment 2
+      SAVE "out.img"
+    "#;
+
+    let instructions = parse_instructions(patcherfile).unwrap();
+    assert_eq!(instructions.len(), 2);
+    assert!(matches!(instructions[0], Instruction::From { .. }));
+    assert!(matches!(instructions[1], Instruction::Save { .. }));
   }
 }
