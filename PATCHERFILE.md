@@ -96,7 +96,7 @@ Arguments:
 Notes:
 
 - `SHELL` runs on the host, not inside the image.
-- It executes through `/bin/sh -o pipefail -c`.
+- It executes through `/bin/bash -o pipefail -c`.
 - Use it when you need shell features (pipes, redirects, substitutions, chaining).
 - If the command exits with a non-zero status, execution stops.
 

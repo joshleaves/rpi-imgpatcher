@@ -76,7 +76,7 @@ impl Instruction {
   }
 
   fn execute_shell(&self, _ctx: &mut PatchContext, command: &String) -> Result<(), PatchError> {
-    let status = Command::new("/bin/sh")
+    let status = Command::new("/bin/bash")
       .arg("-o")
       .arg("pipefail")
       .arg("-c")
