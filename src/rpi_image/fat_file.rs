@@ -76,6 +76,7 @@ pub fn write_bytes(
 
   let root_dir = fat.root_dir();
   let mut fat_file = root_dir.create_file(fat_path)?;
+  fat_file.truncate()?;
   fat_file.write_all(bytes)?;
 
   Ok(bytes.len() as u64)

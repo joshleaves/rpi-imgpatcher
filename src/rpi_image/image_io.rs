@@ -146,4 +146,27 @@ mod image_io_tests {
     let mut rhs = Cursor::new(vec![1, 2, 3]);
     assert!(compare(&mut lhs, &mut rhs).unwrap());
   }
+
+  #[test]
+  fn test_copy_exact() {
+    let mut src = Cursor::new(vec![1, 2, 3, 4, 5]);
+    let mut dst = Vec::new();
+    let copied = copy_exact(&mut src, &mut dst).unwrap();
+    assert_eq!(copied, 5);
+    assert_eq!(dst, vec![1, 2, 3, 4, 5]);
+  }
+
+  #[test]
+  fn test_copy_exact_n() {
+    let mut src = Cursor::new(vec![1, 2, 3, 4, 5]);
+    let mut dst = Vec::new();
+    let copied = copy_exact_n(&mut src, &mut dst, 3).unwrap();
+    assert_eq!(copied, 3);
+    assert_eq!(dst, vec![1, 2, 3]);
+
+    let mut src = Cursor::new(vec![1, 2]);
+    let mut dst = Vec::new();
+    let result = copy_exact_n(&mut src, &mut dst, 3);
+    assert!(matches!(result, Err(Error::CopyMismatch)));
+  }
 }

@@ -77,8 +77,6 @@ impl Instruction {
 
   fn execute_shell(&self, _ctx: &mut PatchContext, command: &String) -> Result<(), PatchError> {
     let status = Command::new("/bin/sh")
-      .arg("-o")
-      .arg("pipefail")
       .arg("-c")
       .arg(command)
       .status()
@@ -167,7 +165,7 @@ impl Instruction {
     let Ok(mut buf) = rpi_image.read_file("cmdline.txt") else {
       return Err(PatchError::CannotReadCmdlineTxt);
     };
-    while matches!(buf.last(), Some(b'\n' | b'\r' | b' ')) {
+    while matches!(buf.last(), Some(b'\n' | b'\r' | b'\t' | b' ')) {
       buf.pop();
     }
     if !buf.is_empty() {
@@ -216,5 +214,124 @@ impl Instruction {
     }
 
     Ok(())
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::patcher::PatchContext;
+  use std::io::Write;
+  use tempfile::NamedTempFile;
+
+  #[test]
+  fn test_execute_append_cmdline() {
+    let fixture_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+      .join("tests")
+      .join("fixtures")
+      .join("test.img");
+
+    let mut ctx = PatchContext::new();
+    let instruction_from = Instruction::From {
+      source_image: fixture_path,
+    };
+    instruction_from.execute(&mut ctx).unwrap();
+
+    // Initial state: cmdline.txt might be empty or have some content in the fixture
+    // Let's force it to a known state first
+    ctx
+      .rpi_image
+      .as_mut()
+      .unwrap()
+      .write_bytes("cmdline.txt", b"console=serial0,115200")
+      .unwrap();
+
+    let instruction_append = Instruction::AppendCmdline {
+      append_conf: "quiet".to_string(),
+    };
+    instruction_append.execute(&mut ctx).unwrap();
+
+    let buf = ctx.rpi_image.as_ref().unwrap().read_file("cmdline.txt").unwrap();
+    assert_eq!(buf, b"console=serial0,115200 quiet");
+
+    // Test with trailing space/newline
+    ctx
+      .rpi_image
+      .as_mut()
+      .unwrap()
+      .write_bytes("cmdline.txt", b"console=serial0,115200 \n")
+      .unwrap();
+    instruction_append.execute(&mut ctx).unwrap();
+    let buf = ctx.rpi_image.as_ref().unwrap().read_file("cmdline.txt").unwrap();
+    assert_eq!(buf, b"console=serial0,115200 quiet");
+
+    // Test with empty cmdline.txt
+    ctx
+      .rpi_image
+      .as_mut()
+      .unwrap()
+      .write_bytes("cmdline.txt", b"")
+      .unwrap();
+    instruction_append.execute(&mut ctx).unwrap();
+    let buf = ctx.rpi_image.as_ref().unwrap().read_file("cmdline.txt").unwrap();
+    assert_eq!(buf, b"quiet");
+  }
+
+  #[test]
+  fn test_execute_shell() {
+    let mut ctx = PatchContext::new();
+    let instruction = Instruction::Shell {
+      command: "exit 0".to_string(),
+    };
+    assert!(instruction.execute(&mut ctx).is_ok());
+
+    let instruction_fail = Instruction::Shell {
+      command: "exit 1".to_string(),
+    };
+    assert!(instruction_fail.execute(&mut ctx).is_err());
+  }
+
+  #[test]
+  fn test_execute_exec() {
+    let mut ctx = PatchContext::new();
+    let instruction = Instruction::Exec {
+      program: "true".to_string(),
+      args: vec![],
+    };
+    assert!(instruction.execute(&mut ctx).is_ok());
+
+    let instruction_fail = Instruction::Exec {
+      program: "false".to_string(),
+      args: vec![],
+    };
+    assert!(instruction_fail.execute(&mut ctx).is_err());
+  }
+
+  #[test]
+  fn test_execute_add_file() {
+    let fixture_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+      .join("tests")
+      .join("fixtures")
+      .join("test.img");
+
+    let mut ctx = PatchContext::new();
+    Instruction::From {
+      source_image: fixture_path,
+    }
+    .execute(&mut ctx)
+    .unwrap();
+
+    let mut temp_host_file = NamedTempFile::new().unwrap();
+    writeln!(temp_host_file, "hello host").unwrap();
+    let host_path = temp_host_file.path().to_path_buf();
+
+    let instruction = Instruction::AddFile {
+      fat_path: "test_host.txt".to_string(),
+      host_file: host_path,
+    };
+    instruction.execute(&mut ctx).unwrap();
+
+    let buf = ctx.rpi_image.as_ref().unwrap().read_file("test_host.txt").unwrap();
+    assert_eq!(buf, b"hello host\n");
   }
 }
