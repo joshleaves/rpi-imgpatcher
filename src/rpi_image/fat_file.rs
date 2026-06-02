@@ -39,6 +39,14 @@ fn create_dir_r(fat: &FileSystem<BufStream<File>>, fat_path: &str) -> Result<(),
   Ok(())
 }
 
+fn ensure_parent_dirs(fat: &FileSystem<BufStream<File>>, fat_path: &str) -> Result<(), Error> {
+  if let Some((dir, _)) = fat_path.rsplit_once('/') {
+    create_dir_r(fat, dir)?;
+  }
+
+  Ok(())
+}
+
 pub fn read_file(fat: &FileSystem<BufStream<File>>, fat_path: &str) -> Result<Vec<u8>, Error> {
   let root_dir = fat.root_dir();
   let mut file = root_dir.open_file(fat_path)?;
@@ -54,12 +62,14 @@ pub fn write_file(
   fat_path: &str,
   external_file: &mut File,
 ) -> Result<u64, Error> {
-  if let Some((dir, _)) = fat_path.rsplit_once('/') {
-    create_dir_r(fat, dir)?;
-  }
+  ensure_parent_dirs(fat, fat_path)?;
 
   let root_dir = fat.root_dir();
   let mut fat_file = root_dir.create_file(fat_path)?;
+  // fatfs::create_file() does not truncate existing files.
+  // Explicitly truncate to avoid leaving stale bytes when the new
+  // content is shorter than the previous file.
+  fat_file.truncate()?;
   let bytes_written = std::io::copy(external_file, &mut fat_file)?;
 
   Ok(bytes_written)
@@ -70,12 +80,14 @@ pub fn write_bytes(
   fat_path: &str,
   bytes: &[u8],
 ) -> Result<u64, Error> {
-  if let Some((dir, _)) = fat_path.rsplit_once('/') {
-    create_dir_r(fat, dir)?;
-  }
+  ensure_parent_dirs(fat, fat_path)?;
 
   let root_dir = fat.root_dir();
   let mut fat_file = root_dir.create_file(fat_path)?;
+  // fatfs::create_file() does not truncate existing files.
+  // Explicitly truncate to avoid leaving stale bytes when the new
+  // content is shorter than the previous file.
+  fat_file.truncate()?;
   fat_file.write_all(bytes)?;
 
   Ok(bytes.len() as u64)
@@ -86,15 +98,10 @@ pub fn append_bytes(
   fat_path: &str,
   bytes: &[u8],
 ) -> Result<u64, Error> {
-  if let Some((dir, _)) = fat_path.rsplit_once('/') {
-    create_dir_r(fat, dir)?;
-  }
+  ensure_parent_dirs(fat, fat_path)?;
 
   let root_dir = fat.root_dir();
-  let mut fat_file = match root_dir.open_file(fat_path) {
-    Ok(f) => f,
-    Err(_) => root_dir.create_file(fat_path)?,
-  };
+  let mut fat_file = root_dir.create_file(fat_path)?;
   fat_file.seek(SeekFrom::End(0))?;
   fat_file.write_all(bytes)?;
 
@@ -182,5 +189,22 @@ mod tests {
     let bytes = read_file(&fat, "boot/nested/deep/new.txt")
       .expect("should read back file written in nested path");
     assert_eq!(bytes, b"second");
+  }
+
+  #[test]
+  fn ensure_parent_dirs_allows_root_files_and_nested_files() {
+    let (_fat_tmp, fat) = open_fat_from_fixture();
+
+    write_bytes(&fat, "root-file.txt", b"root")
+      .expect("should write file at FAT root without parent directories");
+    write_bytes(&fat, "boot/helper/nested-file.txt", b"nested")
+      .expect("should create parent directories for nested file");
+
+    let root_bytes = read_file(&fat, "root-file.txt").expect("should read root file");
+    let nested_bytes =
+      read_file(&fat, "boot/helper/nested-file.txt").expect("should read nested file");
+
+    assert_eq!(root_bytes, b"root");
+    assert_eq!(nested_bytes, b"nested");
   }
 }
