@@ -47,3 +47,37 @@ where
     Ok(())
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use std::io::Write;
+
+  #[test]
+  fn test_progress_writer() {
+    use std::cell::Cell;
+    use std::rc::Rc;
+
+    let mut dest = Vec::new();
+    let total_written = Rc::new(Cell::new(0u64));
+    let total_written_cb = total_written.clone();
+
+    {
+      let mut writer = ProgressWriter::new(&mut dest, move |written| {
+        total_written_cb.set(written);
+      });
+
+      writer.write_all(b"hello").unwrap();
+      assert_eq!(total_written.get(), 5);
+
+      writer.write_all(b" ").unwrap();
+      assert_eq!(total_written.get(), 6);
+
+      writer.write_all(b"world").unwrap();
+      assert_eq!(total_written.get(), 11);
+    }
+
+    assert_eq!(dest, b"hello world");
+    assert_eq!(total_written.get(), 11);
+  }
+}

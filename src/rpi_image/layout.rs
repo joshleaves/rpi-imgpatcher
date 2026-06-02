@@ -29,3 +29,54 @@ impl FatPartitionLayout {
     })
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use std::io::Cursor;
+
+  #[test]
+  fn test_fat_partition_layout_new() {
+    let mbr_data = vec![0u8; 1024];
+    let mut mbr = mbrman::MBR::new_from(&mut Cursor::new(&mbr_data), 512, [0; 4]).unwrap();
+
+    mbr[1] = mbrman::MBRPartitionEntry {
+      boot: mbrman::BOOT_INACTIVE,
+      starting_lba: 100,
+      sectors: 200,
+      sys: FAT32_WITH_LBA,
+      first_chs: mbrman::CHS::empty(),
+      last_chs: mbrman::CHS::empty(),
+    };
+
+    let mut mbr_cursor = Cursor::new(vec![0u8; 1024]);
+    mbr.write_into(&mut mbr_cursor).unwrap();
+    mbr_cursor.set_position(0);
+
+    let layout = FatPartitionLayout::new(&mut mbr_cursor).unwrap();
+    assert_eq!(layout.base, 100 * 512);
+    assert_eq!(layout.length, 200 * 512);
+  }
+
+  #[test]
+  fn test_fat_partition_layout_no_fat() {
+    let mbr_data = vec![0u8; 1024];
+    let mut mbr = mbrman::MBR::new_from(&mut Cursor::new(&mbr_data), 512, [0; 4]).unwrap();
+
+    mbr[1] = mbrman::MBRPartitionEntry {
+      boot: mbrman::BOOT_INACTIVE,
+      starting_lba: 100,
+      sectors: 200,
+      sys: 0x83, // Linux
+      first_chs: mbrman::CHS::empty(),
+      last_chs: mbrman::CHS::empty(),
+    };
+
+    let mut mbr_cursor = Cursor::new(vec![0u8; 1024]);
+    mbr.write_into(&mut mbr_cursor).unwrap();
+    mbr_cursor.set_position(0);
+
+    let result = FatPartitionLayout::new(&mut mbr_cursor);
+    assert!(matches!(result, Err(Error::InvalidImage)));
+  }
+}
