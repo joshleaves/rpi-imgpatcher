@@ -182,7 +182,7 @@ Behavior:
 
 - Operates only on `cmdline.txt`.
 - The existing content is treated as a single line.
-- Trailing newlines are removed.
+- Trailing white spaces are removed.
 - A single space is inserted if needed.
 - The append_conf string is appended to the end of the line.
 - The file is written back without a trailing newline.
