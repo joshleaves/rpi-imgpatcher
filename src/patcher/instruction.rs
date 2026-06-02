@@ -251,7 +251,12 @@ mod tests {
     };
     instruction_append.execute(&mut ctx).unwrap();
 
-    let buf = ctx.rpi_image.as_ref().unwrap().read_file("cmdline.txt").unwrap();
+    let buf = ctx
+      .rpi_image
+      .as_ref()
+      .unwrap()
+      .read_file("cmdline.txt")
+      .unwrap();
     assert_eq!(buf, b"console=serial0,115200 quiet");
 
     // Test with trailing space/newline
@@ -262,7 +267,12 @@ mod tests {
       .write_bytes("cmdline.txt", b"console=serial0,115200 \n")
       .unwrap();
     instruction_append.execute(&mut ctx).unwrap();
-    let buf = ctx.rpi_image.as_ref().unwrap().read_file("cmdline.txt").unwrap();
+    let buf = ctx
+      .rpi_image
+      .as_ref()
+      .unwrap()
+      .read_file("cmdline.txt")
+      .unwrap();
     assert_eq!(buf, b"console=serial0,115200 quiet");
 
     // Test with empty cmdline.txt
@@ -273,7 +283,12 @@ mod tests {
       .write_bytes("cmdline.txt", b"")
       .unwrap();
     instruction_append.execute(&mut ctx).unwrap();
-    let buf = ctx.rpi_image.as_ref().unwrap().read_file("cmdline.txt").unwrap();
+    let buf = ctx
+      .rpi_image
+      .as_ref()
+      .unwrap()
+      .read_file("cmdline.txt")
+      .unwrap();
     assert_eq!(buf, b"quiet");
   }
 
@@ -331,7 +346,12 @@ mod tests {
     };
     instruction.execute(&mut ctx).unwrap();
 
-    let buf = ctx.rpi_image.as_ref().unwrap().read_file("test_host.txt").unwrap();
+    let buf = ctx
+      .rpi_image
+      .as_ref()
+      .unwrap()
+      .read_file("test_host.txt")
+      .unwrap();
     assert_eq!(buf, b"hello host\n");
   }
 }
