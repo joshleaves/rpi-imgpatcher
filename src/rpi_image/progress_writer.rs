@@ -70,7 +70,7 @@ mod tests {
       writer.write_all(b"hello").unwrap();
       assert_eq!(total_written.get(), 5);
 
-      writer.write(b" ").unwrap();
+      writer.write_all(b" ").unwrap();
       assert_eq!(total_written.get(), 6);
 
       writer.write_all(b"world").unwrap();

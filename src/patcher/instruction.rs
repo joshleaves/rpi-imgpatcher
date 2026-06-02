@@ -222,6 +222,7 @@ mod tests {
   use super::*;
   use crate::patcher::PatchContext;
   use std::io::Write;
+  use std::path::PathBuf;
   use tempfile::NamedTempFile;
 
   #[test]

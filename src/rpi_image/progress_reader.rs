@@ -52,16 +52,14 @@ mod tests {
     });
 
     let mut buf = [0u8; 5];
-    let n = reader.read(&mut buf).unwrap();
-    assert_eq!(n, 5);
+    reader.read_exact(&mut buf).unwrap();
     assert_eq!(reader.read, 5);
 
-    let n = reader.read(&mut buf).unwrap();
-    assert_eq!(n, 5);
+    reader.read_exact(&mut buf).unwrap();
     assert_eq!(reader.read, 10);
 
-    let n = reader.read(&mut buf).unwrap();
-    assert_eq!(n, 1);
+    let mut buf_small = [0u8; 1];
+    reader.read_exact(&mut buf_small).unwrap();
     assert_eq!(reader.read, 11);
 
     let n = reader.read(&mut buf).unwrap();
@@ -83,13 +81,14 @@ mod tests {
     });
 
     let mut buf = [0u8; 1];
-    reader.read(&mut buf).unwrap();
+    reader.read_exact(&mut buf).unwrap();
     assert_eq!(total_read.get(), 1);
-    reader.read(&mut buf).unwrap();
+    reader.read_exact(&mut buf).unwrap();
     assert_eq!(total_read.get(), 2);
-    reader.read(&mut buf).unwrap();
+    reader.read_exact(&mut buf).unwrap();
     assert_eq!(total_read.get(), 3);
-    reader.read(&mut buf).unwrap();
+    let n = reader.read(&mut buf).unwrap();
+    assert_eq!(n, 0);
     assert_eq!(total_read.get(), 3);
   }
 }
